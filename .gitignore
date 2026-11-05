@@ -1,0 +1,4 @@
+# Nunca subir datos ni llaves secretas
+supabase/2_datos.sql
+*.env
+export/
