@@ -14,7 +14,9 @@ App de Educación Continua de IBERO Tijuana: diplomados, calendario, profesores,
 
 ## Dar acceso a alguien
 
-Supabase → Authentication → Users → **Invite user** → su correo. Le llega un correo; después entra a la liga de la app con ese mismo correo y recibe una liga para iniciar sesión. Para quitarle el acceso, borra su usuario.
+Supabase → Authentication → Users → **Add user → Create new user** → su correo y una contraseña temporal, con **Auto Confirm User** marcado. Pásale la liga de la app y su contraseña; ya dentro puede cambiarla dando clic a su nombre en el menú. Para quitarle el acceso, borra su usuario.
+
+(No se usan ligas por correo: los correos institucionales de Microsoft «gastan» la liga al revisarla, y Supabase gratis solo manda unos pocos correos por hora.)
 
 ## Seguridad
 

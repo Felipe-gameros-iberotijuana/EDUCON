@@ -44,20 +44,23 @@ const SUPABASE_ANON_KEY = 'sb_publishable_EEJaaTEXrh0y8j_dq82C4g_kXt8nrYF';
     box.innerHTML = `<form class="lg-card" id="lg-form">
       <img alt="IBERO Tijuana" src="${document.querySelector('.side img')?.src || ''}">
       <h1>EduCon IBERO Tijuana</h1>
-      <p>Escribe tu correo y te mandamos una liga para entrar. Solo pueden entrar las personas invitadas.</p>
+      <p>Entra con tu correo y contraseña. Si no tienes cuenta, pídela a quien administra la app.</p>
       <label for="lg-email">Correo</label>
-      <input id="lg-email" type="email" required autocomplete="email" placeholder="tucorreo@ibero.mx">
-      <button type="submit" id="lg-btn">Enviarme la liga</button>
+      <input id="lg-email" type="email" required autocomplete="username" placeholder="tucorreo@tijuana.ibero.mx">
+      <label for="lg-pass">Contraseña</label>
+      <input id="lg-pass" type="password" required autocomplete="current-password">
+      <button type="submit" id="lg-btn">Entrar</button>
       <div id="lg-msg" role="status"></div></form>`;
     document.body.appendChild(box);
+    const urlErr = new URLSearchParams(location.hash.slice(1) || location.search).get('error_description');
+    if (urlErr) document.getElementById('lg-msg').textContent = 'La liga ya no es válida. Entra con tu correo y contraseña.';
     document.getElementById('lg-form').addEventListener('submit', async e => {
       e.preventDefault();
-      const email = document.getElementById('lg-email').value.trim(), msg = document.getElementById('lg-msg'), btn = document.getElementById('lg-btn');
-      btn.disabled = true; msg.textContent = 'Enviando…';
-      const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname } });
+      const email = document.getElementById('lg-email').value.trim(), password = document.getElementById('lg-pass').value, msg = document.getElementById('lg-msg'), btn = document.getElementById('lg-btn');
+      btn.disabled = true; msg.textContent = 'Entrando…';
+      const { error } = await sb.auth.signInWithPassword({ email, password });
       btn.disabled = false;
-      msg.textContent = error ? (/signups not allowed|not found|Signups/i.test(error.message) ? 'Ese correo no está invitado. Pide acceso a quien administra la app.' : 'No se pudo enviar: ' + error.message)
-                              : 'Listo. Revisa tu correo y abre la liga desde este mismo navegador.';
+      msg.textContent = !error ? '' : /invalid login credentials/i.test(error.message) ? 'Correo o contraseña incorrectos.' : /not confirmed/i.test(error.message) ? 'Tu cuenta aún no está confirmada. Pide a quien administra la app que la confirme.' : 'No se pudo entrar: ' + error.message;
     });
   }
   function hideLogin() { document.getElementById('login')?.remove(); }
@@ -152,10 +155,11 @@ const SUPABASE_ANON_KEY = 'sb_publishable_EEJaaTEXrh0y8j_dq82C4g_kXt8nrYF';
     document.getElementById('out-btn').onclick = () => sb.auth.signOut();
     document.getElementById('me-btn').onclick = () => {
       const f = document.createElement('form'); f.className = 'me-form';
-      f.innerHTML = `<label for="me-in">Tu nombre</label><input id="me-in" class="in"><div class="tools"><button class="btn pri" type="submit">Guardar</button><button class="btn ghost" type="button" id="me-x">Cancelar</button></div>`;
+      f.innerHTML = `<label for="me-in">Tu nombre</label><input id="me-in" class="in"><label for="me-pw">Nueva contraseña (opcional)</label><input id="me-pw" class="in" type="password" autocomplete="new-password" placeholder="Déjala vacía para no cambiarla"><div id="me-msg" class="small"></div><div class="tools"><button class="btn pri" type="submit">Guardar</button><button class="btn ghost" type="button" id="me-x">Cancelar</button></div>`;
       document.body.appendChild(f); const inp = f.querySelector('#me-in'); inp.value = me.name || ''; inp.focus();
       f.querySelector('#me-x').onclick = () => f.remove();
       f.onsubmit = async e => { e.preventDefault(); const nombre = inp.value.trim(); if (!nombre) return;
+        const pw = f.querySelector('#me-pw').value; if (pw) { if (pw.length < 8) { f.querySelector('#me-msg').textContent = 'La contraseña debe tener al menos 8 caracteres.'; return; } const { error } = await sb.auth.updateUser({ password: pw }); if (error) { f.querySelector('#me-msg').textContent = 'No se pudo cambiar la contraseña: ' + error.message; return; } }
         await sb.from('perfiles').upsert({ id: session.user.id, nombre, email: session.user.email }); me.name = nombre; profCache.delete(session.user.id);
         document.getElementById('me-name').textContent = nombre; f.remove(); window.dispatchEvent(new HashChangeEvent('hashchange')); };
     };
