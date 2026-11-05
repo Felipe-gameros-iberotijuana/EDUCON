@@ -51,6 +51,7 @@ end $$;
 drop trigger if exists al_crear_usuario on auth.users;
 create trigger al_crear_usuario after insert on auth.users
   for each row execute function public.crear_perfil();
+revoke execute on function public.crear_perfil() from public, anon, authenticated;
 
 -- 5) Cambios en vivo (que todo se mueva solo para todos)
 alter table public.docs replica identity full;
