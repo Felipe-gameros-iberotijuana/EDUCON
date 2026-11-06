@@ -362,12 +362,12 @@ details summary{cursor:pointer}
 .gantt .g6 .gb{top:4px;bottom:4px;overflow:hidden}
 .asrow{align-items:center;gap:10px}
 .asbtns{display:flex;gap:6px;flex:none}
-.asb{width:42px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-weight:700;cursor:pointer;color:var(--fg2)}
-.asb:hover{border-color:var(--fg3)} .asb.on{border-color:transparent}
+.asb{min-width:98px;padding:0 12px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-weight:700;cursor:pointer;color:var(--fg2)}
+.asb:hover{border-color:var(--fg3)} .asb.on{border-color:currentColor} .asb.on.a-ok{background:var(--ok-bg);color:var(--ok)} .asb.on.a-urg{background:var(--crit-bg);color:var(--crit)}
 .qr-over{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:16px}
 .qr-card{background:var(--panel);color:var(--fg);border-radius:14px;padding:22px;width:min(520px,100%);display:flex;flex-direction:column;gap:12px;max-height:100%;overflow:auto}
 .qr-img{background:#fff;border-radius:10px;padding:10px;width:min(360px,100%);margin:0 auto} .qr-img svg{width:100%;height:auto;display:block}
-@media (max-width:560px){.asb{width:36px;height:36px}}
+@media (max-width:560px){.asb{min-width:82px;height:36px;padding:0 8px}}
 .gbadge{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.02em;padding:1px 7px;border-radius:5px;background:var(--rojo-suave);color:var(--rojo);white-space:nowrap;vertical-align:1px;margin-left:6px}
 .grp-a td{background:var(--fg);color:var(--bg);font:600 16px/1.3 var(--f-disp);padding:10px 12px}
 .grp-a td .muted{color:inherit;opacity:.7;font-family:var(--f-body)}
@@ -1358,7 +1358,8 @@ function vFaltantes() {
 }
 
 // ---------- alumnos, cobranza y asistencia ----------
-const ASIS = { P:['Presente','a-ok'], R:['Retardo','a-aten'], F:['Falta','a-urg'], J:['Justificada','a-tiempo'] };
+const ASIS = { P:['Asistencia','a-ok'], F:['Falta','a-urg'] };
+const asE = e => e === 'P' || e === 'R' ? 'P' : 'F';
 const METODOS = ['Transferencia','Depósito','Pago en línea','Efectivo','Tarjeta','Otro'];
 const COB_CLS = { 'Al corriente':'a-ok', 'Atrasado':'a-urg', 'Liquidado':'s-activo', 'Sin plan':'s-fin', 'Baja':'s-pausa' };
 const SECC = {
@@ -1393,10 +1394,9 @@ function cobro(a) {
 }
 function asisDe(gid, aid) {
   const x = D.byId[gid]; const marcas = D.asisByGen[gid] || {}; const fechas = Object.keys(marcas).filter(f => f <= TODAY);
-  let p = 0, r = 0, f = 0, j = 0;
-  fechas.forEach(fe => { const e = (marcas[fe][aid] || {}).estado; if (e === 'P') p++; else if (e === 'R') r++; else if (e === 'J') j++; else f++; });
-  const base = fechas.length - j;
-  return { sesiones:fechas.length, p, r, f, j, pct: base > 0 ? Math.round((p + r) / base * 100) : null };
+  let p = 0, f = 0;
+  fechas.forEach(fe => { const e = (marcas[fe][aid] || {}).estado; if (e && asE(e) === 'P') p++; else f++; });
+  return { sesiones:fechas.length, p, r:0, f, j:0, pct: fechas.length ? Math.round(p / fechas.length * 100) : null };
 }
 function deriveAlumnos() {
   const byGen = {}; for (const [id, a] of Object.entries(S.alumnos || {})) (byGen[a.generacionId] = byGen[a.generacionId] || []).push([id, a]);
@@ -1473,7 +1473,7 @@ function vAlumno(id) {
       ${ed ? `<tr><td><input class="in" type="date" id="pg-f" value="${TODAY}" aria-label="Fecha"></td><td><input class="in num" type="number" min="0" id="pg-i" placeholder="${a.plan ? a.plan.cuota : ''}" aria-label="Importe"></td><td>${sel(METODOS, a.metodo && METODOS.includes(a.metodo) ? a.metodo : 'Transferencia', 'id="pg-m" aria-label="Método"', false)}</td><td><input class="in" id="pg-n" placeholder="Nota (opcional)" aria-label="Nota"></td><td><button class="btn pri sm w" data-act="pago-add" data-id="${id}">Registrar</button></td></tr>` : ''}
     </tbody></table></div></section>` : ''}
   <section class="card pad sec"><div class="sec-h"><h2>Asistencia</h2><span class="small muted">${s.sesiones} sesiones con lista · ${s.p} presente · ${s.r} retardo · ${s.f} falta · ${s.j} justificada</span></div>
-    <div class="chips">${marcas.length ? marcas.map(([fe, m]) => { const e = (m[id] || {}).estado || 'F'; return `<span class="pill ${ASIS[e][1]}" title="${ASIS[e][0]}${(m[id] || {}).via === 'QR' ? ' · por QR ' + ((m[id] || {}).hora || '') : ''}">${fdw(fe)} · ${e}</span>`; }).join('') : '<span class="muted small">Aún no se ha pasado lista en su grupo.</span>'}</div></section>
+    <div class="chips">${marcas.length ? marcas.map(([fe, m]) => { const e = asE((m[id] || {}).estado || 'F'); return `<span class="pill ${ASIS[e][1]}" title="${ASIS[e][0]}${(m[id] || {}).via === 'QR' ? ' · por QR ' + ((m[id] || {}).hora || '') : ''}">${fdw(fe)} · ${ASIS[e][0]}</span>`; }).join('') : '<span class="muted small">Aún no se ha pasado lista en su grupo.</span>'}</div></section>
   </div></div>`;
 }
 
@@ -1599,7 +1599,7 @@ function vAsistencia() {
   const fecha = ui.asFecha && (fechas.includes(ui.asFecha) || (D.asisByGen[gid] || {})[ui.asFecha]) ? ui.asFecha : (fechas.includes(TODAY) ? TODAY : pasadas[pasadas.length - 1] || fechas[0] || TODAY);
   const als = (D.alByGen[gid] || []).filter(([, a]) => a.estatus !== 'Baja').sort((u, v) => nombreAl(u[1]).localeCompare(nombreAl(v[1])));
   const marcas = (D.asisByGen[gid] || {})[fecha] || {}; const ed = puedeEditar('asistencias');
-  const cuenta = k => als.filter(([id]) => (marcas[id] || {}).estado === k).length;
+  const cuenta = k => als.filter(([id]) => marcas[id] && asE(marcas[id].estado) === k).length;
   const sinMarca = als.filter(([id]) => !marcas[id]).length;
   const mod = x.sc.mods.find(m => m.ses.includes(fecha));
   const conc = ui.asConc;
@@ -1610,14 +1610,14 @@ function vAsistencia() {
     <select class="in flt" id="as-fecha" style="width:auto" aria-label="Sesión">${(fechas.length ? fechas : [fecha]).map(f => `<option value="${f}" ${f === fecha ? 'selected' : ''}>${fdw(f)} ${f.slice(0, 4)}${f === TODAY ? ' · hoy' : f > TODAY ? ' · próxima' : ''}</option>`).join('')}</select>
     <div class="tabs"><button class="tab ${!conc ? 'on' : ''}" data-act="as-conc" data-v="">Pasar lista</button><button class="tab ${conc ? 'on' : ''}" data-act="as-conc" data-v="1">Concentrado</button></div></div>
   ${conc ? `<div class="card tbl-w"><table class="mods"><thead><tr><th>Alumno</th>${todas.map(f => `<th class="num" style="font-size:11px">${fd(f, false)}</th>`).join('')}<th>%</th></tr></thead><tbody>
-    ${als.map(([id, a]) => { const s = asisDe(gid, id); return `<tr><td><a href="#a-${id}">${esc(nombreAl(a))}</a></td>${todas.map(f => { const e = (((D.asisByGen[gid] || {})[f] || {})[id] || {}).estado; return `<td class="num" style="text-align:center">${e ? `<span class="pill ${ASIS[e][1]}" style="padding:1px 6px">${e}</span>` : (D.asisByGen[gid] || {})[f] ? '<span class="pill a-urg" style="padding:1px 6px">F</span>' : '<span class="muted">·</span>'}</td>`; }).join('')}<td class="num">${pctTxt(s.pct)}</td></tr>`; }).join('')}
+    ${als.map(([id, a]) => { const s = asisDe(gid, id); return `<tr><td><a href="#a-${id}">${esc(nombreAl(a))}</a></td>${todas.map(f => { const e0 = (((D.asisByGen[gid] || {})[f] || {})[id] || {}).estado, e = e0 && asE(e0); return `<td class="num" style="text-align:center">${e ? `<span class="pill ${ASIS[e][1]}" style="padding:1px 6px">${e === 'P' ? 'A' : 'F'}</span>` : (D.asisByGen[gid] || {})[f] ? '<span class="pill a-urg" style="padding:1px 6px">F</span>' : '<span class="muted">·</span>'}</td>`; }).join('')}<td class="num">${pctTxt(s.pct)}</td></tr>`; }).join('')}
   </tbody></table></div>` : `
   <section class="card pad sec"><div class="sec-h"><div><h2>${esc(x.nombre)} ${genB(x)}</h2><div class="small muted">${fdw(fecha)} ${fecha.slice(0, 4)}${mod ? ` · Módulo ${mod.idx + 1}${mod.nombre ? ': ' + esc(mod.nombre) : ''}${mod.profesorId ? ' · ' + esc(profName(mod.profesorId)) : ''}` : ''}${x.g.horario ? ' · ' + esc(x.g.horario) : ''}</div></div>
-    <div class="tools">${ed ? `<button class="btn w" data-act="as-todos" data-g="${gid}" data-f="${fecha}">Todos presentes</button><button class="btn pri w" data-act="as-qr" data-g="${gid}" data-f="${fecha}">Mostrar QR</button>` : ''}</div></div>
-    <div class="meta"><span><b>${cuenta('P')}</b> presentes</span><span><b>${cuenta('R')}</b> retardos</span><span><b>${cuenta('F')}</b> faltas</span><span><b>${cuenta('J')}</b> justificadas</span><span class="muted">${sinMarca} sin marcar</span></div>
+    <div class="tools">${ed ? `<button class="btn w" data-act="as-todos" data-g="${gid}" data-f="${fecha}">Todos con asistencia</button><button class="btn pri w" data-act="as-qr" data-g="${gid}" data-f="${fecha}">Mostrar QR</button>` : ''}</div></div>
+    <div class="meta"><span><b>${cuenta('P')}</b> asistencias</span><span><b>${cuenta('F')}</b> faltas</span><span class="muted">${sinMarca} sin marcar</span></div>
     <div class="list">${als.map(([id, a]) => { const m = marcas[id] || {}; return `<div class="li asrow"><div style="flex:1;min-width:0"><a href="#a-${id}"><b>${esc(nombreAl(a))}</b></a>${m.via === 'QR' ? `<span class="small muted"> · QR ${esc(m.hora || '')}</span>` : ''}</div>
-      <div class="asbtns">${Object.entries(ASIS).map(([k, [t, c]]) => `<button class="asb ${m.estado === k ? 'on ' + c : ''} w" data-act="as-set" data-g="${gid}" data-f="${fecha}" data-a="${id}" data-v="${k}" title="${t}" aria-label="${t}" ${ed ? '' : 'disabled'}>${k}</button>`).join('')}</div></div>`; }).join('') || '<div class="empty">Este grupo no tiene alumnos activos.</div>'}</div>
-    <div class="small muted">P presente · R retardo · F falta · J justificada. Los que queden sin marcar cuentan como falta cuando ya hay lista en esa fecha.</div>
+      <div class="asbtns">${Object.entries(ASIS).map(([k, [t, c]]) => `<button class="asb ${m.estado && asE(m.estado) === k ? 'on ' + c : ''} w" data-act="as-set" data-g="${gid}" data-f="${fecha}" data-a="${id}" data-v="${k}" aria-label="${t}" ${ed ? '' : 'disabled'}>${t}</button>`).join('')}</div></div>`; }).join('') || '<div class="empty">Este grupo no tiene alumnos activos.</div>'}</div>
+    <div class="small muted">Los que queden sin marcar cuentan como falta cuando ya hay lista en esa fecha.</div>
   </section>`}
   ${ui.qr ? vQR() : ''}`;
 }
@@ -1828,7 +1828,7 @@ $('#exp').addEventListener('click', async () => {
     const AL = Object.entries(S.alumnos).map(([id, a]) => ({ id, a, c:cobro(a), s:asisDe(a.generacionId, id) }));
     add('Alumnos', AL.map(({ a, c, s }) => ({ 'Grupo':genLabel(a.generacionId), 'Nombre':a.nombre, 'Apellidos':a.apellidos, 'Teléfono':a.telefono, 'Correo':a.correo, 'Empresa':a.empresa, 'Estatus':a.estatus, ...(ROL !== 'asistencia' ? { 'Plan':a.plan ? `${a.plan.cuotas} × ${a.plan.cuota}` : '', 'Total acordado':c.total || '', 'Pagado':Math.round(c.pagado), 'Saldo':c.saldo, 'Atraso':c.atraso, 'Estado de pago':c.estado } : {}), 'Asistencia %':s.pct ?? '', 'Factura':a.factura ? 'Sí' : 'No', 'RFC':a.fiscal?.rfc || '', 'Razón social':a.fiscal?.razonSocial || '' })));
     if (ROL !== 'asistencia') add('Pagos', AL.flatMap(({ a }) => (a.pagos || []).map(p => ({ 'Grupo':genLabel(a.generacionId), 'Alumno':nombreAl(a), 'Fecha':p.fecha || '', 'Importe':p.importe, 'Recargo':p.recargo || '', 'Método':p.metodo || '', 'Nota':p.nota || '' }))));
-    const asr = Object.values(S.asist || {}); if (asr.length) add('Asistencia', asr.map(r => ({ 'Grupo':genLabel(r.genId), 'Fecha':r.fecha, 'Alumno':S.alumnos[r.alumnoId] ? nombreAl(S.alumnos[r.alumnoId]) : r.alumnoId, 'Estado':(ASIS[r.estado] || [r.estado])[0], 'Vía':r.via || '', 'Hora':r.hora || '' })));
+    const asr = Object.values(S.asist || {}); if (asr.length) add('Asistencia', asr.map(r => ({ 'Grupo':genLabel(r.genId), 'Fecha':r.fecha, 'Alumno':S.alumnos[r.alumnoId] ? nombreAl(S.alumnos[r.alumnoId]) : r.alumnoId, 'Estado':ASIS[asE(r.estado)][0], 'Vía':r.via || '', 'Hora':r.hora || '' })));
   }
   add('Días inhábiles', (S.inh.lista || []).map(r => ({ 'Desde':r.desde, 'Hasta':r.hasta, 'Motivo':r.motivo, 'Tipo':r.tipo })));
   const buf = XLSX.write(wb, { type:'array', bookType:'xlsx' });
