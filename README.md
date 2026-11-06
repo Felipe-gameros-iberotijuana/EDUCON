@@ -1,5 +1,7 @@
 # EduCon IBERO Tijuana
 
+**Liga de la app:** https://educon-iberotj.github.io
+
 App de Educación Continua de IBERO Tijuana: diplomados, calendario, profesores, catálogo y precios, vinculación empresarial, pendientes del equipo y datos por completar.
 
 - **Página:** `index.html` (un solo archivo, publicado con GitHub Pages).
@@ -9,7 +11,7 @@ App de Educación Continua de IBERO Tijuana: diplomados, calendario, profesores,
 
 1. **Supabase → SQL Editor:** corre `supabase/1_estructura.sql` y después `supabase/2_datos.sql`.
 2. **Supabase → Authentication → Sign In / Providers → Email:** desactiva «Allow new users to sign up», para que solo entre gente invitada.
-3. **Supabase → Authentication → URL Configuration:** en *Site URL* y *Redirect URLs* pon la liga de GitHub Pages (por ejemplo `https://usuario.github.io/educon/`).
+3. **Supabase → Authentication → URL Configuration:** en *Site URL* y *Redirect URLs* pon la liga de GitHub Pages (`https://educon-iberotj.github.io/`).
 4. **GitHub → Settings → Pages:** *Deploy from a branch*, rama `main`, carpeta `/ (root)`.
 
 ## Dar acceso a alguien
