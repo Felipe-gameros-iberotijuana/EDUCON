@@ -792,7 +792,7 @@ function atiende() {
       if (!(x.g.modulos || []).length) A.push({ sev:3, d:x.sc.inicio, t:`<b>${esc(x.nombre)} ${genB(x)} no tiene módulos</b> y arranca el ${fdw(x.sc.inicio)}`, h:'d-' + x.id });
     }
   }
-  const atr = Object.values(S.alumnos || {}).filter(a => a.estatus !== 'Baja' && cobro(a).estado === 'Atrasado');
+  const atr = Object.values(S.alumnos || {}).filter(a => a.estatus !== 'Baja' && enCobranza(a.generacionId) && cobro(a).estado === 'Atrasado');
   if (atr.length) A.push({ sev:1, d:TODAY, t:`<b>${atr.length} alumnos atrasados en sus pagos</b> · ${money(atr.reduce((s, a) => s + cobro(a).atraso, 0))} vencido`, h:'cobranza' });
   for (const [id, t] of Object.entries(S.tareas || {})) if (t.estado !== 'Completada' && t.vence && t.vence < TODAY) A.push({ sev:2, d:t.vence, t:`<b>Pendiente vencido:</b> ${esc(t.titulo || 'Sin título')} · venció el ${fd(t.vence, false)}`, h:'t-' + id });
   for (const c of D.conflicts.filter(c => c.d >= TODAY && c.d <= addDays(TODAY, 60))) A.push({ sev:3, d:c.d, t:`<b>Choque:</b> ${esc(profName(c.pid))} tiene clase en ${c.a.map(s => esc(s.x.nombre)).join(' y ')} el ${fdw(c.d)}`, h:'d-' + c.a[0].gid });
@@ -1434,16 +1434,16 @@ function grupoSel(id, val, todos, soloVivos) {
 
 // ----- Alumnos -----
 function vAlumnos() {
-  const q = norm(ui.alQ || ''), gsel = ui.alGen || '';
-  const L = Object.entries(S.alumnos || {}).filter(([, a]) => (!gsel || a.generacionId === gsel) && (!q || norm(nombreAl(a) + ' ' + a.correo + ' ' + a.telefono + ' ' + a.empresa + ' ' + matDe(a)).includes(q)) && (ui.alBajas || a.estatus !== 'Baja'))
+  const q = norm(ui.alQ || ''), gsel = ui.alGen && (ui.alConc || enCobranza(ui.alGen)) ? ui.alGen : '';
+  const L = Object.entries(S.alumnos || {}).filter(([, a]) => (!gsel || a.generacionId === gsel) && (!q || norm(nombreAl(a) + ' ' + a.correo + ' ' + a.telefono + ' ' + a.empresa + ' ' + matDe(a)).includes(q)) && (ui.alBajas || a.estatus !== 'Baja') && (ui.alConc || gsel || enCobranza(a.generacionId)))
     .map(([id, a]) => ({ id, a, c:cobro(a), s:asisDe(a.generacionId, id) })).sort((x, y) => genLabel(x.a.generacionId).localeCompare(genLabel(y.a.generacionId)) || nombreAl(x.a).localeCompare(nombreAl(y.a)));
-  const total = Object.values(S.alumnos || {}).filter(a => a.estatus !== 'Baja').length;
+  const total = Object.values(S.alumnos || {}).filter(a => a.estatus !== 'Baja' && enCobranza(a.generacionId)).length, nGr = gensConAlumnos().filter(x => enCobranza(x.id)).length;
   const verCob = ROL !== 'asistencia';
-  return `<div class="head"><div><h1>Alumnos</h1><p>${total} alumnos activos en ${gensConAlumnos().length} grupos. Los inscritos de cada diplomado se cuentan solos desde aquí.</p></div>
+  return `<div class="head"><div><h1>Alumnos</h1><p>${total} alumnos en ${nGr} grupos activos y próximos. Los inscritos de cada diplomado se cuentan solos desde aquí.</p></div>
     <div class="tools">${puedeEditar('alumnos') ? `<button class="btn w" data-act="imp-open">Importar desde Excel</button><button class="btn pri w" data-act="al-new">+ Alumno</button>` : ''}</div></div>
   ${ui.imp ? vImport() : ''}
-  <div class="tools"><input type="search" id="q-al" placeholder="Buscar nombre, matrícula, correo, teléfono o empresa" value="${esc(ui.alQ || '')}" aria-label="Buscar">${grupoSel('al-gen', gsel, true)}
-    <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="al-bajas" ${ui.alBajas ? 'checked' : ''}> Mostrar bajas</label><span class="small muted">${L.length} resultados</span></div>
+  <div class="tools"><input type="search" id="q-al" placeholder="Buscar nombre, matrícula, correo, teléfono o empresa" value="${esc(ui.alQ || '')}" aria-label="Buscar">${grupoSel('al-gen', gsel, true, !ui.alConc)}
+    <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="al-bajas" ${ui.alBajas ? 'checked' : ''}> Mostrar bajas</label><label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="al-conc" ${ui.alConc ? 'checked' : ''}> Ver grupos concluidos</label><span class="small muted">${L.length} resultados</span></div>
   <div class="card tbl-w"><table><thead><tr><th>Alumno</th><th>Grupo</th><th>Contacto</th>${verCob ? '<th>Pagos</th><th>Estado</th>' : ''}<th>Asistencia</th><th>Factura</th></tr></thead><tbody>
   ${L.slice(0, ui.alAll ? 2000 : 300).map(({ id, a, c, s }) => `<tr class="click" data-go="a-${id}"><td><b>${esc(nombreAl(a))}</b>${a.estatus === 'Baja' ? ' ' + pill('Baja', 's-pausa') : ''}<div class="small muted">${matDe(a) ? `<span class="mat">${esc(matDe(a))}</span>` : ''}${a.empresa ? (matDe(a) ? ' · ' : '') + esc(a.empresa) : ''}</div></td>
     <td class="small">${esc(genLabel(a.generacionId))}${(() => { const n = otrosProg(id, a).length; return n ? `<div class="muted">+${n} programa${n > 1 ? 's' : ''} más</div>` : ''; })()}</td><td class="small">${esc(a.telefono || '')}<div class="muted">${esc(a.correo || '')}</div></td>
@@ -1627,7 +1627,7 @@ function clasesDe(x) { return x ? x.sc.all : []; }
 function vAsistencia() {
   const hoy = D.ses.filter(s => s.d === TODAY && (D.alByGen[s.gid] || []).length);
   const gs = gensConAlumnos().filter(x => ['Activo','En lanzamiento'].includes(x.st));
-  const gid = ui.asGen && D.byId[ui.asGen] ? ui.asGen : (hoy[0]?.gid || gs[0]?.id || gensConAlumnos()[0]?.id);
+  const gid = ui.asGen && D.byId[ui.asGen] && enCobranza(ui.asGen) ? ui.asGen : (hoy.find(s => enCobranza(s.gid))?.gid || gs[0]?.id || gensConAlumnos().find(x => enCobranza(x.id))?.id);
   if (!gid) return `<div class="head"><div><h1>Asistencia</h1></div></div><div class="empty">Primero hay que cargar alumnos (sección Alumnos → Importar desde Excel).</div>`;
   const x = D.byId[gid]; const fechas = clasesDe(x); const pasadas = fechas.filter(f => f <= TODAY);
   const fecha = ui.asFecha && (fechas.includes(ui.asFecha) || (D.asisByGen[gid] || {})[ui.asFecha]) ? ui.asFecha : (fechas.includes(TODAY) ? TODAY : pasadas[pasadas.length - 1] || fechas[0] || TODAY);
@@ -1640,7 +1640,7 @@ function vAsistencia() {
   const todas = [...new Set([...fechas.filter(f => f <= TODAY), ...Object.keys(D.asisByGen[gid] || {})])].sort();
   return `<div class="head"><div><h1>Asistencia</h1><p>Pasa lista tocando el estado de cada alumno, o muestra el QR para que cada quien se registre desde su celular.</p></div></div>
   ${hoy.length ? `<section class="card pad sec"><h2>Clases de hoy</h2><div class="chips">${[...new Map(hoy.map(s => [s.gid, s])).values()].map(s => `<button class="chip ${s.gid === gid && fecha === TODAY ? 'on' : ''}" data-act="as-pick" data-g="${s.gid}" data-f="${TODAY}">${esc(s.x.nombre)} · Gen ${s.x.gen} · M${s.m.idx + 1}${s.x.g.horario ? ' · ' + esc(s.x.g.horario) : ''}</button>`).join('')}</div></section>` : ''}
-  <div class="tools">${grupoSel('as-gen', gid, false)}
+  <div class="tools">${grupoSel('as-gen', gid, false, true)}
     <select class="in flt" id="as-fecha" style="width:auto" aria-label="Sesión">${(fechas.length ? fechas : [fecha]).map(f => `<option value="${f}" ${f === fecha ? 'selected' : ''}>${fdw(f)} ${f.slice(0, 4)}${f === TODAY ? ' · hoy' : f > TODAY ? ' · próxima' : ''}</option>`).join('')}</select>
     <div class="tabs"><button class="tab ${!conc ? 'on' : ''}" data-act="as-conc" data-v="">Pasar lista</button><button class="tab ${conc ? 'on' : ''}" data-act="as-conc" data-v="1">Concentrado</button></div></div>
   ${conc ? `<div class="card tbl-w"><table class="mods"><thead><tr><th>Alumno</th>${todas.map(f => `<th class="num" style="font-size:11px">${fd(f, false)}</th>`).join('')}<th>%</th></tr></thead><tbody>
@@ -1727,6 +1727,7 @@ document.addEventListener('change', e => {
     const fr = new FileReader(); fr.onload = () => { try { const wb = XLSX.read(fr.result, { type:'array', cellDates:true }); ui.impData = parseLibro(wb); if (!ui.impData.hojas.length) toast('No encontré hojas con alumnos y pagos en ese archivo'); render(); } catch (e) { toast('No se pudo leer el archivo'); } }; fr.readAsArrayBuffer(el.files[0]);
   } else if (el.id === 'al-gen') { ui.alGen = el.value; render(); }
   else if (el.id === 'al-bajas') { ui.alBajas = el.checked; render(); }
+  else if (el.id === 'al-conc') { ui.alConc = el.checked; if (!el.checked && ui.alGen && !enCobranza(ui.alGen)) ui.alGen = ''; render(); }
   else if (el.id === 'cb-gen') { ui.cbGen = el.value; render(); }
   else if (el.id === 'as-gen') { ui.asGen = el.value; ui.asFecha = ''; render(); }
   else if (el.id === 'as-fecha') { ui.asFecha = el.value; render(); }
