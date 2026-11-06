@@ -62,16 +62,17 @@ begin
   correo := lower(trim(coalesce(p_dato, '')));
   dig := right(regexp_replace(coalesce(p_dato, ''), '\D', '', 'g'), 10);
   if length(correo) < 5 then
-    return jsonb_build_object('ok', false, 'error', 'Escribe tu correo o tu teléfono.');
+    return jsonb_build_object('ok', false, 'error', 'Escribe tu matrícula, correo o teléfono.');
   end if;
   select d.id, d.data into a from public.docs d
    where d.col = 'alumnos' and d.data->>'generacionId' = q->>'genId'
      and coalesce(d.data->>'estatus', 'Activo') <> 'Baja'
      and (lower(trim(coalesce(d.data->>'correo', ''))) = correo
+          or lower(trim(coalesce(d.data->>'matricula', ''))) = correo
           or (length(dig) = 10 and right(regexp_replace(coalesce(d.data->>'telefono', ''), '\D', '', 'g'), 10) = dig))
    limit 1;
   if a.id is null then
-    return jsonb_build_object('ok', false, 'error', 'No te encontramos en este grupo. Revisa tu correo o teléfono, o avisa a la encargada.');
+    return jsonb_build_object('ok', false, 'error', 'No te encontramos en este grupo. Revisa tu matrícula, correo o teléfono, o avisa a la encargada.');
   end if;
   aid := (q->>'genId') || '__' || (q->>'fecha') || '__' || a.id;
   insert into public.docs (col, id, data, updated_by)
@@ -79,7 +80,7 @@ begin
           jsonb_build_object('genId', q->>'genId', 'fecha', q->>'fecha', 'alumnoId', a.id, 'estado', 'P', 'via', 'QR', 'hora', to_char(now() at time zone 'America/Tijuana', 'HH24:MI')),
           null)
   on conflict (col, id) do update
-    set data = public.docs.data || jsonb_build_object('estado', case when public.docs.data->>'estado' in ('R','J') then public.docs.data->>'estado' else 'P' end, 'via', 'QR', 'hora', to_char(now() at time zone 'America/Tijuana', 'HH24:MI')),
+    set data = public.docs.data || jsonb_build_object('estado', 'P', 'via', 'QR', 'hora', to_char(now() at time zone 'America/Tijuana', 'HH24:MI')),
         updated_at = now();
   return jsonb_build_object('ok', true, 'nombre', trim(coalesce(a.data->>'nombre', '') || ' ' || coalesce(a.data->>'apellidos', '')));
 end $$;

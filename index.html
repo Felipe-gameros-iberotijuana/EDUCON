@@ -36,8 +36,8 @@ const SUPABASE_ANON_KEY = 'sb_publishable_EEJaaTEXrh0y8j_dq82C4g_kXt8nrYF';
       const ov = document.createElement('div'); ov.id = 'login'; document.body.appendChild(ov);
       ov.innerHTML = `<form class="lg-card" id="qr-form">
         <img alt="IBERO Tijuana" src="${document.querySelector('.side img')?.src || ''}">
-        <h1>Registro de asistencia</h1><p>Escribe el correo o el teléfono con el que te inscribiste.</p>
-        <label for="qr-dato">Correo o teléfono</label><input id="qr-dato" required autocomplete="email" inputmode="email" placeholder="tucorreo@gmail.com o 664 123 4567">
+        <h1>Registro de asistencia</h1><p>Escribe tu matrícula, o el correo o teléfono con el que te inscribiste.</p>
+        <label for="qr-dato">Matrícula, correo o teléfono</label><input id="qr-dato" required autocomplete="email" inputmode="email" placeholder="EC26-0001, tucorreo@gmail.com o 664 123 4567">
         <button type="submit" id="qr-btn">Registrar mi asistencia</button><div id="qr-msg" role="status"></div></form>`;
       try { const v = localStorage.getItem('educon-qr-dato'); if (v) document.getElementById('qr-dato').value = v; } catch (_) {}
       document.getElementById('qr-form').addEventListener('submit', async e => {
@@ -361,6 +361,9 @@ details summary{cursor:pointer}
 .gantt .gb em{font-style:normal;font-size:11px;color:#1b1b1b;padding:0 6px;line-height:22px;white-space:nowrap;font-weight:600}
 .gantt .g6 .gb{top:4px;bottom:4px;overflow:hidden}
 .asrow{align-items:center;gap:10px}
+.pgnew{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;align-items:end;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.pgnew .f label{display:block;font-size:12px;color:var(--fg2);margin-bottom:4px}
+.mat{font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;color:var(--fg2);letter-spacing:.02em}
 .asbtns{display:flex;gap:6px;flex:none}
 .asb{min-width:98px;padding:0 12px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-weight:700;cursor:pointer;color:var(--fg2)}
 .asb:hover{border-color:var(--fg3)} .asb.on{border-color:currentColor} .asb.on.a-ok{background:var(--ok-bg);color:var(--ok)} .asb.on.a-urg{background:var(--crit-bg);color:var(--crit)}
@@ -1360,7 +1363,15 @@ function vFaltantes() {
 // ---------- alumnos, cobranza y asistencia ----------
 const ASIS = { P:['Asistencia','a-ok'], F:['Falta','a-urg'] };
 const asE = e => e === 'P' || e === 'R' ? 'P' : 'F';
-const METODOS = ['Transferencia','Depósito','Pago en línea','Efectivo','Tarjeta','Otro'];
+const METODOS = ['Transferencia','Pago en línea','Pago en caja'];
+function metodoStd(t) { const n = norm(t || ''); const i = [['transf', 'Transferencia'], ['deposito', 'Transferencia'], ['linea', 'Pago en línea'], ['caja', 'Pago en caja']].map(([k, v]) => [n.indexOf(k), v]).filter(([p]) => p >= 0).sort((u, v) => u[0] - v[0]); return i.length ? i[0][1] : ''; }
+const matDe = a => a.matricula || '';
+function nuevaMatricula(anio) {
+  const yy = String(anio || TODAY.slice(0, 4)).slice(2); let mx = 0;
+  for (const a of Object.values(S.alumnos || {})) { const m = /^EC(\d\d)-(\d+)$/.exec(a.matricula || ''); if (m && m[1] === yy) mx = Math.max(mx, Number(m[2])); }
+  return `EC${yy}-${String(mx + 1).padStart(4, '0')}`;
+}
+function matriculaPersona(a) { for (const o of ((D.persona || {})[perKey(a)] || [])) if (S.alumnos[o]?.matricula) return S.alumnos[o].matricula; return nuevaMatricula(); }
 const COB_CLS = { 'Al corriente':'a-ok', 'Atrasado':'a-urg', 'Liquidado':'s-activo', 'Sin plan':'s-fin', 'Baja':'s-pausa' };
 const SECC = {
   admin:['tablero','calendario','diplomados','vinculacion','profesores','programas','alumnos','cobranza','asistencia','pendientes','faltantes','equipo'],
@@ -1424,17 +1435,17 @@ function grupoSel(id, val, todos, soloVivos) {
 // ----- Alumnos -----
 function vAlumnos() {
   const q = norm(ui.alQ || ''), gsel = ui.alGen || '';
-  const L = Object.entries(S.alumnos || {}).filter(([, a]) => (!gsel || a.generacionId === gsel) && (!q || norm(nombreAl(a) + ' ' + a.correo + ' ' + a.telefono + ' ' + a.empresa).includes(q)) && (ui.alBajas || a.estatus !== 'Baja'))
+  const L = Object.entries(S.alumnos || {}).filter(([, a]) => (!gsel || a.generacionId === gsel) && (!q || norm(nombreAl(a) + ' ' + a.correo + ' ' + a.telefono + ' ' + a.empresa + ' ' + matDe(a)).includes(q)) && (ui.alBajas || a.estatus !== 'Baja'))
     .map(([id, a]) => ({ id, a, c:cobro(a), s:asisDe(a.generacionId, id) })).sort((x, y) => genLabel(x.a.generacionId).localeCompare(genLabel(y.a.generacionId)) || nombreAl(x.a).localeCompare(nombreAl(y.a)));
   const total = Object.values(S.alumnos || {}).filter(a => a.estatus !== 'Baja').length;
   const verCob = ROL !== 'asistencia';
   return `<div class="head"><div><h1>Alumnos</h1><p>${total} alumnos activos en ${gensConAlumnos().length} grupos. Los inscritos de cada diplomado se cuentan solos desde aquí.</p></div>
     <div class="tools">${puedeEditar('alumnos') ? `<button class="btn w" data-act="imp-open">Importar desde Excel</button><button class="btn pri w" data-act="al-new">+ Alumno</button>` : ''}</div></div>
   ${ui.imp ? vImport() : ''}
-  <div class="tools"><input type="search" id="q-al" placeholder="Buscar nombre, correo, teléfono o empresa" value="${esc(ui.alQ || '')}" aria-label="Buscar">${grupoSel('al-gen', gsel, true)}
+  <div class="tools"><input type="search" id="q-al" placeholder="Buscar nombre, matrícula, correo, teléfono o empresa" value="${esc(ui.alQ || '')}" aria-label="Buscar">${grupoSel('al-gen', gsel, true)}
     <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="al-bajas" ${ui.alBajas ? 'checked' : ''}> Mostrar bajas</label><span class="small muted">${L.length} resultados</span></div>
   <div class="card tbl-w"><table><thead><tr><th>Alumno</th><th>Grupo</th><th>Contacto</th>${verCob ? '<th>Pagos</th><th>Estado</th>' : ''}<th>Asistencia</th><th>Factura</th></tr></thead><tbody>
-  ${L.slice(0, ui.alAll ? 2000 : 300).map(({ id, a, c, s }) => `<tr class="click" data-go="a-${id}"><td><b>${esc(nombreAl(a))}</b>${a.estatus === 'Baja' ? ' ' + pill('Baja', 's-pausa') : ''}${a.empresa ? `<div class="small muted">${esc(a.empresa)}</div>` : ''}</td>
+  ${L.slice(0, ui.alAll ? 2000 : 300).map(({ id, a, c, s }) => `<tr class="click" data-go="a-${id}"><td><b>${esc(nombreAl(a))}</b>${a.estatus === 'Baja' ? ' ' + pill('Baja', 's-pausa') : ''}<div class="small muted">${matDe(a) ? `<span class="mat">${esc(matDe(a))}</span>` : ''}${a.empresa ? (matDe(a) ? ' · ' : '') + esc(a.empresa) : ''}</div></td>
     <td class="small">${esc(genLabel(a.generacionId))}${(() => { const n = otrosProg(id, a).length; return n ? `<div class="muted">+${n} programa${n > 1 ? 's' : ''} más</div>` : ''; })()}</td><td class="small">${esc(a.telefono || '')}<div class="muted">${esc(a.correo || '')}</div></td>
     ${verCob ? `<td class="num small">${c.total ? `${money(c.pagado)} <span class="muted">/ ${money(c.total)}</span>` : money(c.pagado)}</td><td>${pill(c.estado, COB_CLS[c.estado])}</td>` : ''}
     <td class="num small">${pctTxt(s.pct)}${s.sesiones ? `<div class="muted">${s.p + s.r}/${s.sesiones - s.j}</div>` : ''}</td><td class="small">${a.factura ? 'Sí' : '<span class="muted">No</span>'}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">${Object.keys(S.alumnos || {}).length ? 'Sin resultados.' : 'Todavía no hay alumnos. Usa «Importar desde Excel» con tu archivo de Control de pagos.'}</td></tr>`}
@@ -1449,10 +1460,11 @@ function vAlumno(id) {
   const verCob = ROL !== 'asistencia';
   const eq = x?.eq; const opts = eq ? [{ nombre:'Precio de lista', desc:0, pagos:Number(eq.pagosLista) || 1 }, ...(eq.opciones || [])] : [];
   return `<div class="head"><div><div class="crumb"><a href="#alumnos">Alumnos</a> / ${esc(nombreAl(a))}</div><h1>${esc(nombreAl(a))}</h1>
-    <p>${x ? `<a href="#d-${x.id}">${esc(x.label)}</a>` : 'Sin grupo'} · ${verCob ? pill(c.estado, COB_CLS[c.estado]) + ' · ' : ''}asistencia ${pctTxt(s.pct)}</p></div>
+    <p>${matDe(a) ? `<span class="mat">${esc(matDe(a))}</span> · ` : ''}${x ? `<a href="#d-${x.id}">${esc(x.label)}</a>` : 'Sin grupo'} · ${verCob ? pill(c.estado, COB_CLS[c.estado]) + ' · ' : ''}asistencia ${pctTxt(s.pct)}</p></div>
     <div class="tools">${ed ? `<button class="btn danger w" data-act="del" data-col="alumnos" data-id="${id}">Eliminar</button>` : ''}</div></div>
   <div class="grid2 gridal"><div class="sec">
   <section class="card pad sec"><h2>Datos</h2><div class="form">
+    ${fld('Matrícula', `<input class="in" value="${esc(a.matricula || '')}" placeholder="Se asigna sola" ${b('matricula')}>`)}
     ${fld('Nombre(s)', `<input class="in" value="${esc(a.nombre || '')}" ${b('nombre')}>`)}
     ${fld('Apellidos', `<input class="in" value="${esc(a.apellidos || '')}" ${b('apellidos')}>`)}
     ${fld('Teléfono', `<input class="in" value="${esc(a.telefono || '')}" ${b('telefono')}>`)}
@@ -1486,10 +1498,11 @@ function vAlumno(id) {
       ${fld('Total acordado', `<input class="in num" type="number" min="0" value="${a.plan?.total ?? ''}" data-planf="${id}|total">`)}
       ${fld('Nº de pagos', `<input class="in num" type="number" min="1" max="24" value="${a.plan?.cuotas ?? ''}" data-planf="${id}|cuotas">`)}
     </div>` : ''}
-    <div class="tbl-w"><table class="ptbl"><thead><tr><th>Fecha</th><th>Importe</th><th>Método</th><th>Nota</th>${ed ? '<th></th>' : ''}</tr></thead><tbody>
-      ${(a.pagos || []).map((p, i) => ({ p, i })).sort((u, v) => (v.p.fecha || '').localeCompare(u.p.fecha || '')).map(({ p, i }) => `<tr><td class="num">${p.fecha ? fd(p.fecha) : '<span class="muted">sin fecha</span>'}</td><td class="num"><b>${money(p.importe)}</b>${p.recargo ? `<div class="small muted">incluye ${money(p.recargo)} de recargo</div>` : ''}</td><td class="small">${esc(p.metodo || '')}</td><td class="small">${esc(p.nota || '')}</td>${ed ? `<td><button class="btn ghost sm danger w" data-act="pago-del" data-id="${id}" data-i="${i}" aria-label="Quitar pago">✕</button></td>` : ''}</tr>`).join('') || '<tr><td colspan="5" class="muted small">Sin pagos registrados.</td></tr>'}
-      ${ed ? `<tr><td><input class="in" type="date" id="pg-f" value="${TODAY}" aria-label="Fecha"></td><td><input class="in num" type="number" min="0" id="pg-i" placeholder="${a.plan ? a.plan.cuota : ''}" aria-label="Importe"></td><td>${sel(METODOS, a.metodo && METODOS.includes(a.metodo) ? a.metodo : 'Transferencia', 'id="pg-m" aria-label="Método"', false)}</td><td><input class="in" id="pg-n" placeholder="Nota (opcional)" aria-label="Nota"></td><td><button class="btn pri sm w" data-act="pago-add" data-id="${id}">Registrar</button></td></tr>` : ''}
-    </tbody></table></div></section>` : ''}
+    <div class="tbl-w"><table class="ptbl"><thead><tr><th>Fecha</th><th>Importe</th><th>Método</th><th>Folio</th><th>Nota</th>${ed ? '<th></th>' : ''}</tr></thead><tbody>
+      ${(a.pagos || []).map((p, i) => ({ p, i })).sort((u, v) => (v.p.fecha || '').localeCompare(u.p.fecha || '')).map(({ p, i }) => `<tr><td class="num">${p.fecha ? fd(p.fecha) : '<span class="muted">sin fecha</span>'}</td><td class="num"><b>${money(p.importe)}</b>${p.recargo ? `<div class="small muted">incluye ${money(p.recargo)} de recargo</div>` : ''}</td><td class="small">${ed ? sel(METODOS.concat(p.metodo && !METODOS.includes(p.metodo) ? [p.metodo] : []), p.metodo || '', `data-pgf="${id}|${i}|metodo" aria-label="Método" style="min-width:140px"`, !p.metodo) : esc(p.metodo || '')}</td><td class="small">${ed ? `<input class="in" value="${esc(p.folio || '')}" placeholder="Folio" data-pgf="${id}|${i}|folio" aria-label="Folio" style="min-width:90px">` : esc(p.folio || '')}</td><td class="small">${esc(p.nota || '')}</td>${ed ? `<td><button class="btn ghost sm danger w" data-act="pago-del" data-id="${id}" data-i="${i}" aria-label="Quitar pago">✕</button></td>` : ''}</tr>`).join('') || '<tr><td colspan="6" class="muted small">Sin pagos registrados.</td></tr>'}
+    </tbody></table></div>
+      ${ed ? `<div class="pgnew"><div class="f"><label>Fecha</label><input class="in" type="date" id="pg-f" value="${TODAY}"></div><div class="f"><label>Importe</label><input class="in num" type="number" min="0" id="pg-i" placeholder="${a.plan ? a.plan.cuota : ''}"></div><div class="f"><label>Método</label>${sel(METODOS, metodoStd(a.metodo) || 'Transferencia', 'id="pg-m"', false)}</div><div class="f"><label>Folio</label><input class="in" id="pg-fo" placeholder="Folio del recibo"></div><div class="f"><label>Nota</label><input class="in" id="pg-n" placeholder="Opcional"></div><button class="btn pri w" data-act="pago-add" data-id="${id}">Registrar pago</button></div>` : ''}
+    </section>` : ''}
   <section class="card pad sec"><div class="sec-h"><h2>Asistencia</h2><span class="small muted">${s.sesiones} sesiones con lista · ${s.p} asistencias · ${s.f} faltas</span></div>
     <div class="chips">${marcas.length ? marcas.map(([fe, m]) => { const e = asE((m[id] || {}).estado || 'F'); return `<span class="pill ${ASIS[e][1]}" title="${ASIS[e][0]}${(m[id] || {}).via === 'QR' ? ' · por QR ' + ((m[id] || {}).hora || '') : ''}">${fdw(fe)} · ${ASIS[e][0]}</span>`; }).join('') : '<span class="muted small">Aún no se ha pasado lista en su grupo.</span>'}</div></section>
   </div></div>`;
@@ -1519,7 +1532,7 @@ function parseLibro(wb) {
       const g = h => ix[h] != null ? r[ix[h]] : null; const nom = xtxt(g('Nombre'));
       if (!nom || /^(\d+|descuento|total|por favor|nota)/i.test(norm(nom))) continue;
       if (!xtxt(g('Apellido')) && !xtxt(g('Correo-e')) && !xtxt(g('Teléfono'))) continue;
-      const pagos = pares.map(i => ({ fecha:xdate(r[i]), importe:xnum(r[i + 1]) })).filter(p => p.importe).map(p => ({ ...p, metodo:xtxt(g('Referencia')), nota:p.fecha ? '' : 'Fecha no capturada en el Excel' }));
+      const pagos = pares.map(i => ({ fecha:xdate(r[i]), importe:xnum(r[i + 1]) })).filter(p => p.importe).map(p => ({ ...p, metodo:metodoStd(xtxt(g('Referencia'))), nota:p.fecha ? '' : 'Fecha no capturada en el Excel' }));
       al.push({ nombre:nom, apellidos:xtxt(g('Apellido')), telefono:xtxt(g('Teléfono')), correo:xtxt(g('Correo-e')).toLowerCase(), empresa:xtxt(g('Empresa')), puesto:xtxt(g('Área')), factura:/^s/i.test(xtxt(g('Factura'))), facturasEmitidas:xtxt(g('Facturas')), metodo:xtxt(g('Referencia')), pagos });
     }
     const key = nombre.trim();
@@ -1565,6 +1578,9 @@ async function importar() {
       if (prev) { const k = p => `${p.fecha}|${Math.round(p.importe)}`; const ya = new Set((prev.pagos || []).map(k)); pagos = [...(prev.pagos || []), ...a.pagos.filter(p => !ya.has(k(p)))]; }
       docs[id] = { ...(prev || { estatus:'Activo', notas:'' }), ...a, pagos, generacionId:h.gen, plan: prev?.planManual ? prev.plan : (plan || prev?.plan || null), planManual: !!prev?.planManual, fiscal: (f && f.d) || prev?.fiscal || {}, origen:`Excel de pagos · hoja ${h.hoja}`, estatus: prev?.estatus || 'Activo', notas: prev?.notas || '' };
     } }
+  { const mk = {}; for (const a of Object.values(S.alumnos || {})) if (a.matricula) mk[perKey(a)] = a.matricula;
+    const yy = TODAY.slice(2, 4); let mx = 0; for (const m of Object.values(mk)) { const r = /^EC(\d\d)-(\d+)$/.exec(m); if (r && r[1] === yy) mx = Math.max(mx, Number(r[2])); }
+    for (const d of Object.values(docs)) { if (d.matricula) { mk[perKey(d)] = d.matricula; continue; } const k = perKey(d); d.matricula = mk[k] || (mk[k] = `EC${yy}-${String(++mx).padStart(4, '0')}`); } }
   const ids = Object.keys(docs); let done = 0;
   try {
     if (db.bulk) { for (let i = 0; i < ids.length; i += 100) { const part = ids.slice(i, i + 100); await db.bulk('alumnos', part.map(id => ({ id, data:{ ...docs[id], actualizadoEn:new Date().toISOString(), actualizadoPor:myId || null } }))); done += part.length; if (msg) msg.textContent = `Guardando… ${done} de ${ids.length}`; } }
@@ -1580,7 +1596,7 @@ function vCobranza() {
   const tot = k => all.reduce((s, r) => s + (r.c[k] || 0), 0);
   const atras = all.filter(r => r.c.estado === 'Atrasado');
   const mes = TODAY.slice(0, 7); const cobMes = all.reduce((s, r) => s + (r.a.pagos || []).filter(p => (p.fecha || '').startsWith(mes)).reduce((u, p) => u + (Number(p.importe) || 0), 0), 0);
-  const L = all.filter(r => (!gsel || r.a.generacionId === gsel) && (!est || r.c.estado === est) && (!q || norm(nombreAl(r.a) + ' ' + r.a.correo + ' ' + r.a.telefono).includes(q)))
+  const L = all.filter(r => (!gsel || r.a.generacionId === gsel) && (!est || r.c.estado === est) && (!q || norm(nombreAl(r.a) + ' ' + r.a.correo + ' ' + r.a.telefono + ' ' + matDe(r.a)).includes(q)))
     .sort((u, v) => (v.c.atraso - u.c.atraso) || (v.c.saldo - u.c.saldo) || nombreAl(u.a).localeCompare(nombreAl(v.a)));
   const grupos = gensConAlumnos().filter(x => enCobranza(x.id) && (!gsel || x.id === gsel)).map(x => { const rs = all.filter(r => r.a.generacionId === x.id); return { x, n:rs.length, total:rs.reduce((s, r) => s + r.c.total, 0), pag:rs.reduce((s, r) => s + r.c.pagado, 0), saldo:rs.reduce((s, r) => s + r.c.saldo, 0), at:rs.filter(r => r.c.estado === 'Atrasado').length, atm:rs.reduce((s, r) => s + r.c.atraso, 0) }; }).filter(g => g.n);
   const cnt = e => all.filter(r => r.c.estado === e).length;
@@ -1599,7 +1615,7 @@ function vCobranza() {
   <div class="tools"><input type="search" id="q-cb" placeholder="Buscar alumno" value="${esc(ui.cbQ || '')}" aria-label="Buscar">${grupoSel('cb-gen', gsel, true, true)}
     <div class="tabs">${['','Atrasado','Al corriente','Liquidado','Sin plan'].map(e => `<button class="tab ${est === e ? 'on' : ''}" data-act="cb-est" data-v="${e}">${e || 'Todos'}<em>${e ? cnt(e) : all.length}</em></button>`).join('')}</div></div>
   <div class="card tbl-w"><table><thead><tr><th>Alumno</th><th>Grupo</th><th>Plan</th><th>Pagado</th><th>Saldo</th><th>Atraso</th><th>Último pago</th><th>Estado</th></tr></thead><tbody>
-    ${L.slice(0, 400).map(({ id, a, c }) => `<tr class="click" data-go="a-${id}"><td><b>${esc(nombreAl(a))}</b><div class="small muted">${esc(a.telefono || '')}${a.factura ? ' · factura' : ''}</div></td><td class="small">${esc(genLabel(a.generacionId))}</td>
+    ${L.slice(0, 400).map(({ id, a, c }) => `<tr class="click" data-go="a-${id}"><td><b>${esc(nombreAl(a))}</b><div class="small muted">${matDe(a) ? `<span class="mat">${esc(matDe(a))}</span> · ` : ''}${esc(a.telefono || '')}${a.factura ? ' · factura' : ''}</div></td><td class="small">${esc(genLabel(a.generacionId))}</td>
       <td class="small">${a.plan ? (a.plan.cuotas > 1 ? `${a.plan.cuotas} × ${money(a.plan.cuota)}` : `1 pago ${money(a.plan.total)}`) : '<span class="muted">—</span>'}</td>
       <td class="num">${money(Math.round(c.pagado))}${c.total ? `<div class="ins ${c.estado === 'Atrasado' ? 'low' : 'ok'}" style="max-width:110px"><div class="ibar"><i style="width:${Math.min(100, Math.round(c.pagado / c.total * 100))}%"></i></div></div>` : ''}</td>
       <td class="num">${money(c.saldo)}</td><td class="num">${c.atraso ? `<b style="color:var(--crit)">${money(c.atraso)}</b>` : '<span class="muted">—</span>'}</td><td class="num small">${c.ult ? fd(c.ult, false) : '<span class="muted">—</span>'}</td><td>${pill(c.estado, COB_CLS[c.estado])}</td></tr>`).join('') || '<tr><td colspan="8" class="empty">Sin alumnos con estos filtros.</td></tr>'}
@@ -1700,6 +1716,8 @@ document.addEventListener('change', e => {
     const [aid, f] = el.dataset.fis.split('|'); const a = strip(S.alumnos[aid]); a.fiscal = { ...(a.fiscal || {}), [f]:el.value }; save('alumnos', aid, a, 'Guardado');
   } else if (el.dataset.plan) {
     const aid = el.dataset.plan; const a = strip(S.alumnos[aid]); if (el.value === 'custom' || el.value === '') { if (el.value === '') a.plan = null; render(); if (el.value === 'custom') return; } else { const [t, n] = el.value.split('|').map(Number); a.plan = { total:t, cuotas:n, cuota:r2(t / n) }; } a.planManual = true; save('alumnos', aid, a, 'Plan actualizado');
+  } else if (el.dataset.pgf) {
+    const [aid, i, f] = el.dataset.pgf.split('|'); const a = strip(S.alumnos[aid]); a.pagos = (a.pagos || []).map((p, k) => k === Number(i) ? { ...p, [f]:el.value.trim() } : p); save('alumnos', aid, a, 'Guardado');
   } else if (el.dataset.planf) {
     const [aid, f] = el.dataset.planf.split('|'); const a = strip(S.alumnos[aid]); const p = { ...(a.plan || { total:0, cuotas:1 }) }; p[f] = Number(el.value) || 0; p.cuota = p.cuotas ? r2(p.total / p.cuotas) : p.total; a.plan = p; a.planManual = true; save('alumnos', aid, a, 'Plan actualizado');
   } else if (el.dataset.imp != null && ui.impData) { ui.impData.hojas[Number(el.dataset.imp)].gen = el.value; render();
@@ -1786,9 +1804,9 @@ document.addEventListener('click', async e => {
   else if (act === 'al-all') { ui.alAll = true; render(); }
   else if (act === 'al-ver') { e.preventDefault(); ui.alGen = a.dataset.g; go('alumnos'); }
   else if (act === 'al-insc') { const gid = $('#al-insc-sel')?.value; if (!gid) { toast('Elige primero el diplomado'); return; } const o = S.alumnos[id]; const nid = `al-${gid}-${uid('n').slice(2)}`;
-    await save('alumnos', nid, { generacionId:gid, nombre:o.nombre || '', apellidos:o.apellidos || '', telefono:o.telefono || '', correo:o.correo || '', empresa:o.empresa || '', puesto:o.puesto || '', factura:!!o.factura, facturasEmitidas:'', metodo:'', estatus:'Activo', plan:null, pagos:[], fiscal:{ ...(o.fiscal || {}) }, notas:'', origen:'Inscrito desde la ficha de ' + genLabel(o.generacionId) }, 'Inscrito en ' + genLabel(gid)); go('a-' + nid); }
-  else if (act === 'al-new') { const gid = ui.alGen || gensConAlumnos()[0]?.id || ''; const nid = `al-${gid}-${uid('n').slice(2)}`; await save('alumnos', nid, { generacionId:gid, nombre:'Nuevo alumno', apellidos:'', telefono:'', correo:'', empresa:'', puesto:'', factura:false, facturasEmitidas:'', metodo:'', estatus:'Activo', plan:null, pagos:[], fiscal:{}, notas:'' }, 'Alumno creado'); go('a-' + nid); }
-  else if (act === 'pago-add') { const imp = Number($('#pg-i').value); if (!imp) { toast('Escribe el importe'); return; } const al = strip(S.alumnos[id]); const base = al.plan?.cuota; const p = { fecha:$('#pg-f').value || TODAY, importe:imp, metodo:$('#pg-m').value, nota:$('#pg-n').value.trim() }; if (base && imp / base > 1.03 && imp / base < 1.12) p.recargo = r2(imp - base); al.pagos = [...(al.pagos || []), p]; save('alumnos', id, al, 'Pago registrado'); }
+    await save('alumnos', nid, { generacionId:gid, matricula:o.matricula || matriculaPersona(o), nombre:o.nombre || '', apellidos:o.apellidos || '', telefono:o.telefono || '', correo:o.correo || '', empresa:o.empresa || '', puesto:o.puesto || '', factura:!!o.factura, facturasEmitidas:'', metodo:'', estatus:'Activo', plan:null, pagos:[], fiscal:{ ...(o.fiscal || {}) }, notas:'', origen:'Inscrito desde la ficha de ' + genLabel(o.generacionId) }, 'Inscrito en ' + genLabel(gid)); go('a-' + nid); }
+  else if (act === 'al-new') { const gid = ui.alGen || gensConAlumnos()[0]?.id || ''; const nid = `al-${gid}-${uid('n').slice(2)}`; await save('alumnos', nid, { generacionId:gid, matricula:nuevaMatricula(), nombre:'Nuevo alumno', apellidos:'', telefono:'', correo:'', empresa:'', puesto:'', factura:false, facturasEmitidas:'', metodo:'', estatus:'Activo', plan:null, pagos:[], fiscal:{}, notas:'' }, 'Alumno creado'); go('a-' + nid); }
+  else if (act === 'pago-add') { const imp = Number($('#pg-i').value); if (!imp) { toast('Escribe el importe'); return; } const al = strip(S.alumnos[id]); const base = al.plan?.cuota; const p = { fecha:$('#pg-f').value || TODAY, importe:imp, metodo:$('#pg-m').value, folio:$('#pg-fo').value.trim(), nota:$('#pg-n').value.trim() }; if (base && imp / base > 1.03 && imp / base < 1.12) p.recargo = r2(imp - base); al.pagos = [...(al.pagos || []), p]; save('alumnos', id, al, 'Pago registrado'); }
   else if (act === 'pago-del') { if (!arm(a)) return; const al = strip(S.alumnos[id]); al.pagos = (al.pagos || []).filter((_, i) => i !== Number(a.dataset.i)); save('alumnos', id, al, 'Pago eliminado'); }
   else if (act === 'cb-gen') { ui.cbGen = a.dataset.v; render(); $('#cb-gen')?.scrollIntoView({ block:'center' }); }
   else if (act === 'cb-est') { ui.cbEst = a.dataset.v; render(); }
@@ -1846,9 +1864,9 @@ $('#exp').addEventListener('click', async () => {
   add('Pendientes', tr.length ? tr : [{ 'Pendiente':'' }]);
   if (Object.keys(S.alumnos || {}).length) {
     const AL = Object.entries(S.alumnos).map(([id, a]) => ({ id, a, c:cobro(a), s:asisDe(a.generacionId, id) }));
-    add('Alumnos', AL.map(({ a, c, s }) => ({ 'Grupo':genLabel(a.generacionId), 'Nombre':a.nombre, 'Apellidos':a.apellidos, 'Teléfono':a.telefono, 'Correo':a.correo, 'Empresa':a.empresa, 'Estatus':a.estatus, ...(ROL !== 'asistencia' ? { 'Plan':a.plan ? `${a.plan.cuotas} × ${a.plan.cuota}` : '', 'Total acordado':c.total || '', 'Pagado':Math.round(c.pagado), 'Saldo':c.saldo, 'Atraso':c.atraso, 'Estado de pago':c.estado } : {}), 'Asistencia %':s.pct ?? '', 'Factura':a.factura ? 'Sí' : 'No', 'RFC':a.fiscal?.rfc || '', 'Razón social':a.fiscal?.razonSocial || '' })));
-    if (ROL !== 'asistencia') add('Pagos', AL.flatMap(({ a }) => (a.pagos || []).map(p => ({ 'Grupo':genLabel(a.generacionId), 'Alumno':nombreAl(a), 'Fecha':p.fecha || '', 'Importe':p.importe, 'Recargo':p.recargo || '', 'Método':p.metodo || '', 'Nota':p.nota || '' }))));
-    const asr = Object.values(S.asist || {}); if (asr.length) add('Asistencia', asr.map(r => ({ 'Grupo':genLabel(r.genId), 'Fecha':r.fecha, 'Alumno':S.alumnos[r.alumnoId] ? nombreAl(S.alumnos[r.alumnoId]) : r.alumnoId, 'Estado':ASIS[asE(r.estado)][0], 'Vía':r.via || '', 'Hora':r.hora || '' })));
+    add('Alumnos', AL.map(({ a, c, s }) => ({ 'Matrícula':a.matricula || '', 'Grupo':genLabel(a.generacionId), 'Nombre':a.nombre, 'Apellidos':a.apellidos, 'Teléfono':a.telefono, 'Correo':a.correo, 'Empresa':a.empresa, 'Estatus':a.estatus, ...(ROL !== 'asistencia' ? { 'Plan':a.plan ? `${a.plan.cuotas} × ${a.plan.cuota}` : '', 'Total acordado':c.total || '', 'Pagado':Math.round(c.pagado), 'Saldo':c.saldo, 'Atraso':c.atraso, 'Estado de pago':c.estado } : {}), 'Asistencia %':s.pct ?? '', 'Factura':a.factura ? 'Sí' : 'No', 'RFC':a.fiscal?.rfc || '', 'Razón social':a.fiscal?.razonSocial || '' })));
+    if (ROL !== 'asistencia') add('Pagos', AL.flatMap(({ a }) => (a.pagos || []).map(p => ({ 'Grupo':genLabel(a.generacionId), 'Matrícula':a.matricula || '', 'Alumno':nombreAl(a), 'Fecha':p.fecha || '', 'Importe':p.importe, 'Recargo':p.recargo || '', 'Método':p.metodo || '', 'Folio':p.folio || '', 'Nota':p.nota || '' }))));
+    const asr = Object.values(S.asist || {}); if (asr.length) add('Asistencia', asr.map(r => ({ 'Grupo':genLabel(r.genId), 'Fecha':r.fecha, 'Matrícula':(S.alumnos[r.alumnoId] || {}).matricula || '', 'Alumno':S.alumnos[r.alumnoId] ? nombreAl(S.alumnos[r.alumnoId]) : r.alumnoId, 'Estado':ASIS[asE(r.estado)][0], 'Vía':r.via || '', 'Hora':r.hora || '' })));
   }
   add('Días inhábiles', (S.inh.lista || []).map(r => ({ 'Desde':r.desde, 'Hasta':r.hasta, 'Motivo':r.motivo, 'Tipo':r.tipo })));
   const buf = XLSX.write(wb, { type:'array', bookType:'xlsx' });
