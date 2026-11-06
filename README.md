@@ -20,6 +20,25 @@ Supabase → Authentication → Users → **Add user → Create new user** → s
 
 (No se usan ligas por correo: los correos institucionales de Microsoft «gastan» la liga al revisarla, y Supabase gratis solo manda unos pocos correos por hora.)
 
+## Roles
+
+Se asignan en la sección **Equipo** de la app (solo administradores):
+
+- **Administrador:** todo, y asigna roles.
+- **Coordinación:** todo, menos asignar roles. Es el rol de quien entra por primera vez.
+- **Cobranza:** Alumnos, Cobranza y Pendientes.
+- **Asistencia:** pasa lista, muestra el QR y ve Alumnos (sin datos de pago).
+
+La regla se aplica en la base de datos (`supabase/4_roles_asistencia.sql`), no solo en la pantalla.
+
+## Asistencia por QR
+
+En Asistencia → «Mostrar QR». El código vale 6 horas. El alumno lo escanea, escribe el correo o teléfono con el que se inscribió y queda como presente. Los alumnos no necesitan cuenta.
+
+## Alumnos y pagos
+
+Se cargan desde el Excel de Control de pagos con **Alumnos → Importar desde Excel**. Los datos de alumnos nunca se suben a este repositorio.
+
 ## Seguridad
 
 - La llave que va en `index.html` es la **anon / public**: está hecha para ir en la página. Los datos solo se pueden leer o cambiar con sesión iniciada (reglas en `1_estructura.sql`).
