@@ -1405,10 +1405,12 @@ function deriveAlumnos() {
 }
 const pctTxt = v => v == null ? '<span class="muted">—</span>' : `<span style="color:${v >= 80 ? 'var(--ok)' : v >= 60 ? 'var(--warn)' : 'var(--crit)'};font-weight:600">${v}%</span>`;
 const gensConAlumnos = () => D.gens.filter(x => (D.alByGen[x.id] || []).length).sort((a, b) => (b.sc.inicio || '').localeCompare(a.sc.inicio || ''));
-function grupoSel(id, val, todos) {
-  const gs = gensConAlumnos(); const act = gs.filter(x => ['Activo','En lanzamiento'].includes(x.st)), otros = gs.filter(x => !act.includes(x));
+const COB_ST = ['Activo','En lanzamiento','En planeación'];
+const enCobranza = gid => COB_ST.includes((D.byId[gid] || {}).st);
+function grupoSel(id, val, todos, soloVivos) {
+  const gs = gensConAlumnos(); const act = gs.filter(x => (soloVivos ? COB_ST : ['Activo','En lanzamiento']).includes(x.st)), otros = soloVivos ? [] : gs.filter(x => !act.includes(x));
   const o = x => `<option value="${x.id}" ${val === x.id ? 'selected' : ''}>${esc(x.label)} · ${(D.alByGen[x.id] || []).length}</option>`;
-  return `<select class="in flt" id="${id}" style="width:auto;max-width:340px" aria-label="Grupo">${todos ? `<option value="">Todos los grupos</option>` : ''}<optgroup label="Activos y por iniciar">${act.map(o).join('')}</optgroup><optgroup label="Concluidos">${otros.map(o).join('')}</optgroup></select>`;
+  return `<select class="in flt" id="${id}" style="width:auto;max-width:340px" aria-label="Grupo">${todos ? `<option value="">Todos los grupos</option>` : ''}<optgroup label="Activos y por iniciar">${act.map(o).join('')}</optgroup>${otros.length ? `<optgroup label="Concluidos">${otros.map(o).join('')}</optgroup>` : ''}</select>`;
 }
 
 // ----- Alumnos -----
@@ -1557,18 +1559,18 @@ async function importar() {
 
 // ----- Cobranza -----
 function vCobranza() {
-  const gsel = ui.cbGen || '', est = ui.cbEst || '', q = norm(ui.cbQ || '');
-  const all = Object.entries(S.alumnos || {}).filter(([, a]) => a.estatus !== 'Baja').map(([id, a]) => ({ id, a, c:cobro(a) }));
+  const gsel = enCobranza(ui.cbGen) ? ui.cbGen : '', est = ui.cbEst || '', q = norm(ui.cbQ || '');
+  const all = Object.entries(S.alumnos || {}).filter(([, a]) => a.estatus !== 'Baja' && enCobranza(a.generacionId)).map(([id, a]) => ({ id, a, c:cobro(a) }));
   const tot = k => all.reduce((s, r) => s + (r.c[k] || 0), 0);
   const atras = all.filter(r => r.c.estado === 'Atrasado');
   const mes = TODAY.slice(0, 7); const cobMes = all.reduce((s, r) => s + (r.a.pagos || []).filter(p => (p.fecha || '').startsWith(mes)).reduce((u, p) => u + (Number(p.importe) || 0), 0), 0);
   const L = all.filter(r => (!gsel || r.a.generacionId === gsel) && (!est || r.c.estado === est) && (!q || norm(nombreAl(r.a) + ' ' + r.a.correo + ' ' + r.a.telefono).includes(q)))
     .sort((u, v) => (v.c.atraso - u.c.atraso) || (v.c.saldo - u.c.saldo) || nombreAl(u.a).localeCompare(nombreAl(v.a)));
-  const grupos = gensConAlumnos().filter(x => !gsel || x.id === gsel).map(x => { const rs = all.filter(r => r.a.generacionId === x.id); return { x, n:rs.length, total:rs.reduce((s, r) => s + r.c.total, 0), pag:rs.reduce((s, r) => s + r.c.pagado, 0), saldo:rs.reduce((s, r) => s + r.c.saldo, 0), at:rs.filter(r => r.c.estado === 'Atrasado').length, atm:rs.reduce((s, r) => s + r.c.atraso, 0) }; }).filter(g => g.n);
+  const grupos = gensConAlumnos().filter(x => enCobranza(x.id) && (!gsel || x.id === gsel)).map(x => { const rs = all.filter(r => r.a.generacionId === x.id); return { x, n:rs.length, total:rs.reduce((s, r) => s + r.c.total, 0), pag:rs.reduce((s, r) => s + r.c.pagado, 0), saldo:rs.reduce((s, r) => s + r.c.saldo, 0), at:rs.filter(r => r.c.estado === 'Atrasado').length, atm:rs.reduce((s, r) => s + r.c.atraso, 0) }; }).filter(g => g.n);
   const cnt = e => all.filter(r => r.c.estado === e).length;
   return `<div class="head"><div><h1>Cobranza</h1><p>Pagos por alumno. «Atrasado» = pagó menos de lo que ya debía según su plan (una parcialidad al inscribirse y una por mes desde el inicio).</p></div></div>
   <div class="kpis">
-    <div class="card kpi"><span>Total acordado</span><b style="font-size:24px">${money(Math.round(tot('total')))}</b><small>${all.length} alumnos activos</small></div>
+    <div class="card kpi"><span>Total acordado</span><b style="font-size:24px">${money(Math.round(tot('total')))}</b><small>${all.length} alumnos de grupos activos y próximos</small></div>
     <div class="card kpi"><span>Cobrado</span><b style="font-size:24px;color:var(--ok)">${money(Math.round(tot('pagado')))}</b><small>${money(cobMes)} en ${MESL[Number(mes.slice(5)) - 1].toLowerCase()}</small></div>
     <div class="card kpi"><span>Por cobrar</span><b style="font-size:24px">${money(Math.round(tot('saldo')))}</b><small>saldo total pendiente</small></div>
     <div class="card kpi"><span>Atrasados</span><b style="color:var(--crit)">${atras.length}</b><small>${money(atras.reduce((s, r) => s + r.c.atraso, 0))} vencido</small></div>
@@ -1578,7 +1580,7 @@ function vCobranza() {
     ${grupos.map(g => `<tr class="click" data-act="cb-gen" data-v="${g.x.id}"><td><b>${esc(g.x.nombre)}</b>${genB(g.x)}<div class="small muted">${stPill(g.x.st)}</div></td><td class="num">${g.n}</td><td class="num">${money(Math.round(g.total))}</td><td class="num">${money(Math.round(g.pag))}<div class="ins ok" style="max-width:120px"><div class="ibar"><i style="width:${g.total ? Math.min(100, Math.round(g.pag / g.total * 100)) : 0}%"></i></div></div></td><td class="num">${money(Math.round(g.saldo))}</td><td class="num">${g.at ? `<b style="color:var(--crit)">${g.at}</b> <span class="small muted">${money(g.atm)}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('')}
   </tbody></table></div></section>
   <section class="sec"><h2>Alumnos</h2>
-  <div class="tools"><input type="search" id="q-cb" placeholder="Buscar alumno" value="${esc(ui.cbQ || '')}" aria-label="Buscar">${grupoSel('cb-gen', gsel, true)}
+  <div class="tools"><input type="search" id="q-cb" placeholder="Buscar alumno" value="${esc(ui.cbQ || '')}" aria-label="Buscar">${grupoSel('cb-gen', gsel, true, true)}
     <div class="tabs">${['','Atrasado','Al corriente','Liquidado','Sin plan'].map(e => `<button class="tab ${est === e ? 'on' : ''}" data-act="cb-est" data-v="${e}">${e || 'Todos'}<em>${e ? cnt(e) : all.length}</em></button>`).join('')}</div></div>
   <div class="card tbl-w"><table><thead><tr><th>Alumno</th><th>Grupo</th><th>Plan</th><th>Pagado</th><th>Saldo</th><th>Atraso</th><th>Último pago</th><th>Estado</th></tr></thead><tbody>
     ${L.slice(0, 400).map(({ id, a, c }) => `<tr class="click" data-go="a-${id}"><td><b>${esc(nombreAl(a))}</b><div class="small muted">${esc(a.telefono || '')}${a.factura ? ' · factura' : ''}</div></td><td class="small">${esc(genLabel(a.generacionId))}</td>
