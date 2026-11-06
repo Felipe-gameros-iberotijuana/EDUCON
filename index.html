@@ -363,6 +363,37 @@ details summary{cursor:pointer}
 .asrow{align-items:center;gap:10px}
 .pgnew{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;align-items:end;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .pgnew .f label{display:block;font-size:12px;color:var(--fg2);margin-bottom:4px}
+.gwrap{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.gwrap>.g-area:first-child{margin-top:4px}
+.g-area{display:flex;align-items:baseline;gap:10px;margin:22px 0 4px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+.g-area h2{margin:0;font-size:22px}
+.g-area span,.g-prog span{font-size:13.5px;color:var(--fg3)}
+.g-prog{display:flex;align-items:center;gap:10px;margin:14px 2px 2px}
+.g-prog h3{margin:0;font-size:17px;font-weight:700;font-family:var(--f-body)}
+.g-dot{width:12px;height:12px;border-radius:50%;flex:none}
+.gcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;margin-top:8px}
+.gcard{position:relative;display:flex;flex-direction:column;gap:8px;padding:16px 18px 16px 20px;background:var(--panel);border:1px solid var(--line);border-radius:14px;color:inherit;text-decoration:none;overflow:hidden;transition:transform .15s ease,box-shadow .15s ease,border-color .15s}
+.gcard::before{content:"";position:absolute;inset:0 auto 0 0;width:5px;background:var(--pc)}
+.gcard::after{content:"";position:absolute;inset:0;background:var(--pc);opacity:.045;pointer-events:none}
+.gcard:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(35,31,30,.09);border-color:color-mix(in srgb,var(--pc) 45%,var(--line))}
+.gcard:focus-visible{outline:2px solid var(--rojo);outline-offset:2px}
+.g-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.g-gen{font-weight:800;font-size:15px;letter-spacing:.01em;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,var(--pc) 22%,var(--panel));color:var(--fg)}
+.g-name{font-weight:700;font-size:16.5px;line-height:1.25;margin-top:2px}
+.g-sub{font-size:13px;color:var(--fg3);margin-top:-4px}
+.g-dates{font-size:16px;font-weight:600;color:var(--fg)}
+.g-arr{color:var(--fg3);font-weight:400;margin:0 2px}
+.g-tent{font-size:12px;font-weight:600;color:var(--warn);background:var(--warn-bg);padding:1px 7px;border-radius:999px;margin-left:4px}
+.g-tl{height:6px;border-radius:999px;background:var(--line2);overflow:hidden}
+.g-tl i{display:block;height:100%;border-radius:999px;background:var(--pc)}
+.g-tlt,.g-cd{font-size:12.5px;color:var(--fg2);margin-top:-3px}
+.g-cd b{color:var(--rojo)}
+.g-meta{display:flex;flex-wrap:wrap;gap:6px}
+.g-meta span{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--fg2);background:var(--bg);border:1px solid var(--line2);padding:3px 9px;border-radius:999px}
+.g-meta svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.8}
+.g-foot{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:auto;padding-top:10px;border-top:1px dashed var(--line)}
+.g-foot label{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fg3);margin-bottom:4px}
+.g-foot .ins,.g-foot .prep{min-width:0}
 .mat{font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;color:var(--fg2);letter-spacing:.02em}
 .asbtns{display:flex;gap:6px;flex:none}
 .asb{min-width:98px;padding:0 12px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-weight:700;cursor:pointer;color:var(--fg2)}
@@ -908,12 +939,41 @@ function vDiplomados() {
   <div class="tools" style="justify-content:space-between"><div class="tabs">${tabs.map(([k, n, f]) => `<button class="tab ${k === t[0] ? 'on' : ''}" data-tab="${k}">${n}<em>${D.gens.filter(f).length}</em></button>`).join('')}</div>
     <div class="tools"><span class="small muted">Ver</span><div class="tabs"><button class="tab ${ui.genGroup === 'area' ? 'on' : ''}" data-act="gen-group" data-v="area">Por área</button><button class="tab ${ui.genGroup === 'programa' ? 'on' : ''}" data-act="gen-group" data-v="programa">Por programa</button><button class="tab ${ui.genGroup === 'lista' ? 'on' : ''}" data-act="gen-group" data-v="lista">Por fecha</button></div></div></div>
   <div class="tools"><span class="small muted">Área</span><div class="chips"><button class="chip ${!ui.genArea ? 'on' : ''}" data-act="gen-area" data-v="">Todas <span style="opacity:.7">${L0.length}</span></button>${areas.map(a => `<button class="chip ${ui.genArea === a ? 'on' : ''}" data-act="gen-area" data-v="${esc(a)}">${esc(a)} <span style="opacity:.7">${L0.filter(x => areaOf(x) === a).length}</span></button>`).join('')}</div></div>
-  <div class="card tbl-w"><table><thead><tr><th>Diplomado</th><th>Estatus</th><th>Fechas</th><th>Días y horario</th><th>Sede</th><th>Módulos</th><th>Inscritos</th><th>Preparación</th></tr></thead><tbody>
-  ${L.length ? L.map((x, i) => `${isArea && (i === 0 || areaOf(L[i - 1]) !== areaOf(x)) ? `<tr class="grp-a"><td colspan="8">${esc(areaOf(x))} <span class="muted small">· ${new Set(L.filter(y => areaOf(y) === areaOf(x)).map(y => y.g.programaId)).size} programas · ${L.filter(y => areaOf(y) === areaOf(x)).length} generaciones</span></td></tr>` : ''}${ui.genGroup !== 'lista' && (i === 0 || L[i - 1].g.programaId !== x.g.programaId) ? `<tr class="grp"><td colspan="8"><span class="swatch" style="display:inline-block;margin:0 8px 0 0;background:${D.col[x.g.programaId]}"></span>${esc(x.nombre)} <span class="muted small">· ${L.filter(y => y.g.programaId === x.g.programaId).length} en esta vista · ${x.total} generaciones en total</span></td></tr>` : ''}<tr class="click" data-go="d-${x.id}"><td style="min-width:180px"><div style="display:flex;gap:8px"><span class="swatch" style="background:${D.col[x.g.programaId]}"></span><div>${ui.genGroup !== 'lista' ? `<b style="white-space:nowrap">Generación ${x.gen}</b>` : `<b>${esc(x.nombre)}</b>${genB(x)}`}<div class="small muted">${esc(x.g.etiqueta || '')} · ${esc(x.p.tipo || '')}</div></div></div></td>
-    <td>${stPill(x.st)}</td><td class="num small">${x.sc.inicio ? fd(x.sc.inicio) + ' → ' + fd(x.sc.fin) : x.g.inicioTentativo ? MESL[pd(x.g.inicioTentativo).getMonth()] + ' (tentativo)' : '<span class="muted">Sin fecha</span>'}</td>
-    <td class="small">${esc(diasTxt(x.g)) || '<span class="muted">—</span>'}<div class="muted">${esc(x.g.horario || '')}</div></td><td class="small">${esc(x.g.sede || x.g.modalidad || '—')}</td>
-    <td class="num">${(x.g.modulos || []).length}${x.plan > (x.g.modulos||[]).length ? ` / ${x.plan}` : ''}</td><td>${insCell(x, true)}</td><td>${prepCell(x)}</td></tr>`).join('') : `<tr><td colspan="8" class="empty">No hay generaciones en esta vista.</td></tr>`}
-  </tbody></table></div>`;
+  ${L.length ? `<div class="gwrap">${L.map((x, i) => {
+      const nuevaArea = isArea && (i === 0 || areaOf(L[i - 1]) !== areaOf(x));
+      const enArea = L.filter(y => areaOf(y) === areaOf(x));
+      return `${nuevaArea && i > 0 ? '</div>' : ''}${nuevaArea ? `<div class="g-area"><h2>${esc(areaOf(x))}</h2><span>${new Set(enArea.map(y => y.g.programaId)).size} programas · ${enArea.length} generaciones</span></div>` : ''}${nuevaArea || i === 0 ? '<div class="gcards">' : ''}${genCard(x)}`; }).join('')}</div></div>` : '<div class="empty card">No hay generaciones en esta vista.</div>'}`;
+}
+const GI = {
+  cal:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>',
+  mod:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 7.5 12 12l9-4.5L12 3zM3 12l9 4.5 9-4.5M3 16.5 12 21l9-4.5"/></svg>',
+  user:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.8-3.8 3.9-6 7.5-6s6.7 2.2 7.5 6"/></svg>',
+};
+function genCard(x) {
+  const col = D.col[x.g.programaId] || 'var(--gris)';
+  const all = x.sc.all || [], hechas = all.filter(f => f <= TODAY).length;
+  const enCurso = x.sc.inicio && x.sc.inicio <= TODAY && (!x.sc.fin || x.sc.fin >= TODAY);
+  const modAct = enCurso ? (x.sc.mods || []).findIndex(m => (m.ses || []).some(f => f >= TODAY)) : -1;
+  const fechas = x.sc.inicio ? `${fd(x.sc.inicio, false)} <span class="g-arr">→</span> ${fd(x.sc.fin)}` : x.g.inicioTentativo ? `${MESL[pd(x.g.inicioTentativo).getMonth()]} ${x.g.inicioTentativo.slice(0, 4)} <span class="g-tent">tentativo</span>` : '<span class="muted">Sin fecha todavía</span>';
+  let avance = '';
+  if (enCurso && all.length) avance = `<div class="g-tl"><i style="width:${Math.round(hechas / all.length * 100)}%"></i></div><div class="g-tlt">Clase ${hechas} de ${all.length}${modAct >= 0 ? ` · módulo ${modAct + 1} de ${(x.sc.mods || []).length}` : ''}</div>`;
+  else if (x.dpi != null && x.dpi > 0 && x.dpi <= 120) avance = `<div class="g-cd">Arranca en <b>${x.dpi}</b> día${x.dpi === 1 ? '' : 's'}</div>`;
+  const nMod = (x.g.modulos || []).length;
+  const meta = [
+    diasTxt(x.g) ? `<span>${GI.cal}${esc(diasTxt(x.g))}${x.g.horario ? ' · ' + esc(x.g.horario) : ''}</span>` : '',
+    (x.g.sede || x.g.modalidad) ? `<span>${GI.pin}${esc(x.g.sede || x.g.modalidad)}</span>` : '',
+    nMod || x.plan ? `<span>${GI.mod}${nMod}${x.plan > nMod ? ` de ${x.plan}` : ''} módulo${(x.plan || nMod) === 1 ? '' : 's'}</span>` : '',
+  ].filter(Boolean).join('');
+  return `<a class="gcard" href="#d-${x.id}" style="--pc:${col}">
+    <div class="g-top"><span class="g-gen">Gen ${x.gen}</span>${stPill(x.st)}</div>
+    <div class="g-name">${esc(x.nombre)}</div>
+    <div class="g-sub">${esc([x.sc.inicio && /tentativ|^pr[oó]xima$/i.test(x.g.etiqueta || '') ? '' : x.g.etiqueta, x.p.tipo, x.total > 1 ? `${x.total} generaciones en total` : ''].filter(Boolean).join(' · '))}</div>
+    <div class="g-dates">${fechas}</div>
+    ${avance}
+    ${meta ? `<div class="g-meta">${meta}</div>` : ''}
+    <div class="g-foot"><div><label>Inscritos</label>${insCell(x)}</div><div><label>Preparación</label>${prepCell(x)}</div></div>
+  </a>`;
 }
 
 function sel(opts, val, attrs, blank = true) { return `<select class="in" ${attrs}>${blank ? '<option value=""></option>' : ''}${opts.map(o => { const [v, t] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}" ${String(val ?? '') === String(v) ? 'selected' : ''}>${esc(t)}</option>`; }).join('')}</select>`; }
