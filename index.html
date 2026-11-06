@@ -1402,7 +1402,15 @@ function deriveAlumnos() {
   const byGen = {}; for (const [id, a] of Object.entries(S.alumnos || {})) (byGen[a.generacionId] = byGen[a.generacionId] || []).push([id, a]);
   const asisByGen = {}; for (const r of Object.values(S.asist || {})) { ((asisByGen[r.genId] = asisByGen[r.genId] || {})[r.fecha] = asisByGen[r.genId][r.fecha] || {})[r.alumnoId] = r; }
   D.alByGen = byGen; D.asisByGen = asisByGen;
+  const per = {}; for (const [id, a] of Object.entries(S.alumnos || {})) (per[perKey(a)] = per[perKey(a)] || []).push(id);
+  D.persona = per;
 }
+function perKey(a) {
+  const c = (a.correo || '').trim().toLowerCase(); if (c.includes('@')) return 'c:' + c;
+  const t = (a.telefono || '').replace(/\D/g, '').slice(-10); if (t.length === 10) return 't:' + t;
+  return 'n:' + norm((a.nombre || '') + ' ' + (a.apellidos || ''));
+}
+const otrosProg = (id, a) => ((D.persona || {})[perKey(a)] || []).filter(o => o !== id && S.alumnos[o]);
 const pctTxt = v => v == null ? '<span class="muted">—</span>' : `<span style="color:${v >= 80 ? 'var(--ok)' : v >= 60 ? 'var(--warn)' : 'var(--crit)'};font-weight:600">${v}%</span>`;
 const gensConAlumnos = () => D.gens.filter(x => (D.alByGen[x.id] || []).length).sort((a, b) => (b.sc.inicio || '').localeCompare(a.sc.inicio || ''));
 const COB_ST = ['Activo','En lanzamiento','En planeación'];
@@ -1427,7 +1435,7 @@ function vAlumnos() {
     <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="al-bajas" ${ui.alBajas ? 'checked' : ''}> Mostrar bajas</label><span class="small muted">${L.length} resultados</span></div>
   <div class="card tbl-w"><table><thead><tr><th>Alumno</th><th>Grupo</th><th>Contacto</th>${verCob ? '<th>Pagos</th><th>Estado</th>' : ''}<th>Asistencia</th><th>Factura</th></tr></thead><tbody>
   ${L.slice(0, ui.alAll ? 2000 : 300).map(({ id, a, c, s }) => `<tr class="click" data-go="a-${id}"><td><b>${esc(nombreAl(a))}</b>${a.estatus === 'Baja' ? ' ' + pill('Baja', 's-pausa') : ''}${a.empresa ? `<div class="small muted">${esc(a.empresa)}</div>` : ''}</td>
-    <td class="small">${esc(genLabel(a.generacionId))}</td><td class="small">${esc(a.telefono || '')}<div class="muted">${esc(a.correo || '')}</div></td>
+    <td class="small">${esc(genLabel(a.generacionId))}${(() => { const n = otrosProg(id, a).length; return n ? `<div class="muted">+${n} programa${n > 1 ? 's' : ''} más</div>` : ''; })()}</td><td class="small">${esc(a.telefono || '')}<div class="muted">${esc(a.correo || '')}</div></td>
     ${verCob ? `<td class="num small">${c.total ? `${money(c.pagado)} <span class="muted">/ ${money(c.total)}</span>` : money(c.pagado)}</td><td>${pill(c.estado, COB_CLS[c.estado])}</td>` : ''}
     <td class="num small">${pctTxt(s.pct)}${s.sesiones ? `<div class="muted">${s.p + s.r}/${s.sesiones - s.j}</div>` : ''}</td><td class="small">${a.factura ? 'Sí' : '<span class="muted">No</span>'}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">${Object.keys(S.alumnos || {}).length ? 'Sin resultados.' : 'Todavía no hay alumnos. Usa «Importar desde Excel» con tu archivo de Control de pagos.'}</td></tr>`}
   </tbody></table></div>${L.length > 300 && !ui.alAll ? `<button class="btn ghost" data-act="al-all">Ver los ${L.length - 300} restantes</button>` : ''}`;
@@ -1455,6 +1463,14 @@ function vAlumno(id) {
     ${fld('Estatus', sel(['Activo','Baja'], a.estatus || 'Activo', b('estatus'), false))}
     ${fld('Notas', `<textarea class="in" ${b('notas')}>${esc(a.notas || '')}</textarea>`, true)}
   </div></section>
+  ${(() => { const otros = otrosProg(id, a).map(o => [o, S.alumnos[o]]).sort((p, q) => ((D.byId[q[1].generacionId] || {}).sc?.inicio || '').localeCompare((D.byId[p[1].generacionId] || {}).sc?.inicio || ''));
+    const ya = new Set([a.generacionId, ...otros.map(([, o]) => o.generacionId)]);
+    const disp = D.gens.filter(g => !ya.has(g.id) && ['Activo','En lanzamiento','En planeación','En desarrollo'].includes(g.st)).sort((p, q) => (p.sc.inicio || '9').localeCompare(q.sc.inicio || '9'));
+    return `<section class="card pad sec"><div class="sec-h"><h2>Programas de esta persona</h2><span class="small muted">${otros.length + 1}</span></div>
+    <div class="list"><div class="li"><div style="flex:1"><b>${esc(genLabel(a.generacionId))}</b> <span class="small muted">· esta ficha</span></div>${verCob ? pill(c.estado, COB_CLS[c.estado]) : ''}</div>
+    ${otros.map(([o, oa]) => { const oc = cobro(oa); return `<a class="li" href="#a-${o}"><div style="flex:1">${esc(genLabel(oa.generacionId))}${oa.estatus === 'Baja' ? ' ' + pill('Baja', 's-pausa') : ''}</div>${verCob ? pill(oc.estado, COB_CLS[oc.estado]) : ''}</a>`; }).join('')}</div>
+    ${ed ? `<div class="tools" style="margin-top:10px"><select class="in" id="al-insc-sel" style="width:auto;max-width:340px" aria-label="Diplomado"><option value="">Elegir diplomado o curso…</option>${disp.map(g => `<option value="${g.id}">${esc(g.label)} · ${esc(g.st)}</option>`).join('')}</select><button class="btn pri w" data-act="al-insc" data-id="${id}">Inscribir en otro programa</button></div>
+    <div class="small muted">Copia sus datos y su información fiscal a una ficha nueva en ese grupo, con su propio plan de pagos y su propia asistencia. Se reconocen como la misma persona por correo o teléfono.</div>` : ''}</section>`; })()}
   <section class="card pad sec"><h2>Facturación</h2><div class="form">
     <div class="f" style="justify-content:flex-end"><label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;color:var(--fg)"><input type="checkbox" ${a.factura ? 'checked' : ''} ${b('factura', 'bool')}> Requiere factura</label></div>
     ${fld('Facturas emitidas', `<input class="in" value="${esc(a.facturasEmitidas || '')}" placeholder="Ej. 2 de 5" ${b('facturasEmitidas')}>`)}
@@ -1474,7 +1490,7 @@ function vAlumno(id) {
       ${(a.pagos || []).map((p, i) => ({ p, i })).sort((u, v) => (v.p.fecha || '').localeCompare(u.p.fecha || '')).map(({ p, i }) => `<tr><td class="num">${p.fecha ? fd(p.fecha) : '<span class="muted">sin fecha</span>'}</td><td class="num"><b>${money(p.importe)}</b>${p.recargo ? `<div class="small muted">incluye ${money(p.recargo)} de recargo</div>` : ''}</td><td class="small">${esc(p.metodo || '')}</td><td class="small">${esc(p.nota || '')}</td>${ed ? `<td><button class="btn ghost sm danger w" data-act="pago-del" data-id="${id}" data-i="${i}" aria-label="Quitar pago">✕</button></td>` : ''}</tr>`).join('') || '<tr><td colspan="5" class="muted small">Sin pagos registrados.</td></tr>'}
       ${ed ? `<tr><td><input class="in" type="date" id="pg-f" value="${TODAY}" aria-label="Fecha"></td><td><input class="in num" type="number" min="0" id="pg-i" placeholder="${a.plan ? a.plan.cuota : ''}" aria-label="Importe"></td><td>${sel(METODOS, a.metodo && METODOS.includes(a.metodo) ? a.metodo : 'Transferencia', 'id="pg-m" aria-label="Método"', false)}</td><td><input class="in" id="pg-n" placeholder="Nota (opcional)" aria-label="Nota"></td><td><button class="btn pri sm w" data-act="pago-add" data-id="${id}">Registrar</button></td></tr>` : ''}
     </tbody></table></div></section>` : ''}
-  <section class="card pad sec"><div class="sec-h"><h2>Asistencia</h2><span class="small muted">${s.sesiones} sesiones con lista · ${s.p} presente · ${s.r} retardo · ${s.f} falta · ${s.j} justificada</span></div>
+  <section class="card pad sec"><div class="sec-h"><h2>Asistencia</h2><span class="small muted">${s.sesiones} sesiones con lista · ${s.p} asistencias · ${s.f} faltas</span></div>
     <div class="chips">${marcas.length ? marcas.map(([fe, m]) => { const e = asE((m[id] || {}).estado || 'F'); return `<span class="pill ${ASIS[e][1]}" title="${ASIS[e][0]}${(m[id] || {}).via === 'QR' ? ' · por QR ' + ((m[id] || {}).hora || '') : ''}">${fdw(fe)} · ${ASIS[e][0]}</span>`; }).join('') : '<span class="muted small">Aún no se ha pasado lista en su grupo.</span>'}</div></section>
   </div></div>`;
 }
@@ -1769,6 +1785,8 @@ document.addEventListener('click', async e => {
   else if (act === 'imp-run') { a.disabled = true; importar(); }
   else if (act === 'al-all') { ui.alAll = true; render(); }
   else if (act === 'al-ver') { e.preventDefault(); ui.alGen = a.dataset.g; go('alumnos'); }
+  else if (act === 'al-insc') { const gid = $('#al-insc-sel')?.value; if (!gid) { toast('Elige primero el diplomado'); return; } const o = S.alumnos[id]; const nid = `al-${gid}-${uid('n').slice(2)}`;
+    await save('alumnos', nid, { generacionId:gid, nombre:o.nombre || '', apellidos:o.apellidos || '', telefono:o.telefono || '', correo:o.correo || '', empresa:o.empresa || '', puesto:o.puesto || '', factura:!!o.factura, facturasEmitidas:'', metodo:'', estatus:'Activo', plan:null, pagos:[], fiscal:{ ...(o.fiscal || {}) }, notas:'', origen:'Inscrito desde la ficha de ' + genLabel(o.generacionId) }, 'Inscrito en ' + genLabel(gid)); go('a-' + nid); }
   else if (act === 'al-new') { const gid = ui.alGen || gensConAlumnos()[0]?.id || ''; const nid = `al-${gid}-${uid('n').slice(2)}`; await save('alumnos', nid, { generacionId:gid, nombre:'Nuevo alumno', apellidos:'', telefono:'', correo:'', empresa:'', puesto:'', factura:false, facturasEmitidas:'', metodo:'', estatus:'Activo', plan:null, pagos:[], fiscal:{}, notas:'' }, 'Alumno creado'); go('a-' + nid); }
   else if (act === 'pago-add') { const imp = Number($('#pg-i').value); if (!imp) { toast('Escribe el importe'); return; } const al = strip(S.alumnos[id]); const base = al.plan?.cuota; const p = { fecha:$('#pg-f').value || TODAY, importe:imp, metodo:$('#pg-m').value, nota:$('#pg-n').value.trim() }; if (base && imp / base > 1.03 && imp / base < 1.12) p.recargo = r2(imp - base); al.pagos = [...(al.pagos || []), p]; save('alumnos', id, al, 'Pago registrado'); }
   else if (act === 'pago-del') { if (!arm(a)) return; const al = strip(S.alumnos[id]); al.pagos = (al.pagos || []).filter((_, i) => i !== Number(a.dataset.i)); save('alumnos', id, al, 'Pago eliminado'); }
