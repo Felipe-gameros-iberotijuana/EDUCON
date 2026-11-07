@@ -368,8 +368,9 @@ details summary{cursor:pointer}
 .g-area{display:flex;align-items:baseline;gap:10px;margin:22px 0 4px;padding-bottom:6px;border-bottom:2px solid var(--line)}
 .g-area h2{margin:0;font-size:22px}
 .g-area span,.g-prog span{font-size:13.5px;color:var(--fg3)}
-.g-prog{display:flex;align-items:center;gap:10px;margin:14px 2px 2px}
-.g-prog h3{margin:0;font-size:17px;font-weight:700;font-family:var(--f-body)}
+.g-prog{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin:18px 2px 0}
+.gwrap>.g-prog:first-child{margin-top:6px}
+.g-prog b{font-size:17px}
 .g-dot{width:12px;height:12px;border-radius:50%;flex:none}
 .gcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;margin-top:8px}
 .gcard{position:relative;display:flex;flex-direction:column;gap:8px;padding:16px 18px 16px 20px;background:var(--panel);border:1px solid var(--line);border-radius:14px;color:inherit;text-decoration:none;overflow:hidden;transition:transform .15s ease,box-shadow .15s ease,border-color .15s}
@@ -940,9 +941,16 @@ function vDiplomados() {
     <div class="tools"><span class="small muted">Ver</span><div class="tabs"><button class="tab ${ui.genGroup === 'area' ? 'on' : ''}" data-act="gen-group" data-v="area">Por área</button><button class="tab ${ui.genGroup === 'programa' ? 'on' : ''}" data-act="gen-group" data-v="programa">Por programa</button><button class="tab ${ui.genGroup === 'lista' ? 'on' : ''}" data-act="gen-group" data-v="lista">Por fecha</button></div></div></div>
   <div class="tools"><span class="small muted">Área</span><div class="chips"><button class="chip ${!ui.genArea ? 'on' : ''}" data-act="gen-area" data-v="">Todas <span style="opacity:.7">${L0.length}</span></button>${areas.map(a => `<button class="chip ${ui.genArea === a ? 'on' : ''}" data-act="gen-area" data-v="${esc(a)}">${esc(a)} <span style="opacity:.7">${L0.filter(x => areaOf(x) === a).length}</span></button>`).join('')}</div></div>
   ${L.length ? `<div class="gwrap">${L.map((x, i) => {
-      const nuevaArea = isArea && (i === 0 || areaOf(L[i - 1]) !== areaOf(x));
-      const enArea = L.filter(y => areaOf(y) === areaOf(x));
-      return `${nuevaArea && i > 0 ? '</div>' : ''}${nuevaArea ? `<div class="g-area"><h2>${esc(areaOf(x))}</h2><span>${new Set(enArea.map(y => y.g.programaId)).size} programas · ${enArea.length} generaciones</span></div>` : ''}${nuevaArea || i === 0 ? '<div class="gcards">' : ''}${genCard(x)}`; }).join('')}</div></div>` : '<div class="empty card">No hay generaciones en esta vista.</div>'}`;
+      const k = y => ui.genGroup === 'area' ? areaOf(y) : ui.genGroup === 'programa' ? y.g.programaId : (y.sc.inicio || y.g.inicioTentativo || '').slice(0, 7);
+      const nuevo = i === 0 || k(L[i - 1]) !== k(x);
+      let h = '';
+      if (nuevo) {
+        const grp = L.filter(y => k(y) === k(x));
+        if (ui.genGroup === 'area') h = `<div class="g-area"><h2>${esc(areaOf(x))}</h2><span>${new Set(grp.map(y => y.g.programaId)).size} programas · ${grp.length} generaciones</span></div>`;
+        else if (ui.genGroup === 'programa') h = `<div class="g-prog"><span class="g-dot" style="background:${D.col[x.g.programaId]}"></span><b>${esc(x.nombre)}</b><span>${grp.length} en esta vista · ${x.total} en total</span></div>`;
+        else { const m = k(x); h = `<div class="g-area"><h2>${m ? MESL[Number(m.slice(5, 7)) - 1] + ' ' + m.slice(0, 4) : 'Sin fecha'}</h2><span>${grp.length} generaci${grp.length === 1 ? 'ón' : 'ones'}</span></div>`; }
+      }
+      return `${nuevo && i > 0 ? '</div>' : ''}${h}${nuevo ? '<div class="gcards">' : ''}${genCard(x, ui.genGroup === 'programa')}`; }).join('')}</div></div>` : '<div class="empty card">No hay generaciones en esta vista.</div>'}`;
 }
 const GI = {
   cal:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
@@ -950,7 +958,7 @@ const GI = {
   mod:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 7.5 12 12l9-4.5L12 3zM3 12l9 4.5 9-4.5M3 16.5 12 21l9-4.5"/></svg>',
   user:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.8-3.8 3.9-6 7.5-6s6.7 2.2 7.5 6"/></svg>',
 };
-function genCard(x) {
+function genCard(x, enPrograma) {
   const col = D.col[x.g.programaId] || 'var(--gris)';
   const all = x.sc.all || [], hechas = all.filter(f => f <= TODAY).length;
   const enCurso = x.sc.inicio && x.sc.inicio <= TODAY && (!x.sc.fin || x.sc.fin >= TODAY);
@@ -967,8 +975,8 @@ function genCard(x) {
   ].filter(Boolean).join('');
   return `<a class="gcard" href="#d-${x.id}" style="--pc:${col}">
     <div class="g-top"><span class="g-gen">Gen ${x.gen}</span>${stPill(x.st)}</div>
-    <div class="g-name">${esc(x.nombre)}</div>
-    <div class="g-sub">${esc([x.sc.inicio && /tentativ|^pr[oó]xima$/i.test(x.g.etiqueta || '') ? '' : x.g.etiqueta, x.p.tipo, x.total > 1 ? `${x.total} generaciones en total` : ''].filter(Boolean).join(' · '))}</div>
+    ${enPrograma ? '' : `<div class="g-name">${esc(x.nombre)}</div>`}
+    <div class="g-sub">${esc([x.sc.inicio && /tentativ|^pr[oó]xima$/i.test(x.g.etiqueta || '') ? '' : x.g.etiqueta, x.p.tipo, !enPrograma && x.total > 1 ? `${x.total} generaciones en total` : ''].filter(Boolean).join(' · '))}</div>
     <div class="g-dates">${fechas}</div>
     ${avance}
     ${meta ? `<div class="g-meta">${meta}</div>` : ''}
@@ -1877,7 +1885,7 @@ document.addEventListener('click', async e => {
   else if (act === 'as-todos') { const { g, f } = a.dataset; for (const [aid, al] of (D.alByGen[g] || [])) if (al.estatus !== 'Baja' && !S.asist[`${g}__${f}__${aid}`]) await setAsis(g, f, aid, 'P'); toast('Lista marcada'); }
   else if (act === 'as-qr') { const { g, f } = a.dataset; const token = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join(''); const expira = new Date(Date.now() + 6 * 36e5).toISOString(); try { await db.collection('qr').doc(token).set({ genId:g, fecha:f, expira, creadoPor:myId || null }); ui.qr = { token, genId:g, fecha:f, expira }; render(); } catch (err) { toast('No se pudo generar el QR'); } }
   else if (act === 'qr-close') { ui.qr = null; render(); }
-  else if (act === 'gen-area') { ui.genGroup = a.dataset.v; render(); }
+  else if (act === 'gen-group') { ui.genGroup = a.dataset.v; render(); }
   else if (act === 'cal-color') { ui.calColor = a.dataset.v; render(); }
   else if (act === 'f-clear') { ui.orgEtapa = ui.orgPrior = ui.orgProg = ui.orgQ = ''; render(); }
 });
