@@ -1,11 +1,11 @@
 -- EduCon IBERO Tijuana · roles por sección y asistencia por QR
 -- Roles: admin (todo + equipo), coordinacion (todo), cobranza (alumnos, cobranza, pendientes),
---        asistencia (alumnos en lectura, asistencia, pendientes).
+--        asistencia (alumnos en lectura, asistencia, pendientes), lectura (ve todo, no edita).
 
 -- 1) Rol de cada persona
 alter table public.perfiles add column if not exists rol text not null default 'coordinacion';
 alter table public.perfiles drop constraint if exists perfiles_rol_check;
-alter table public.perfiles add constraint perfiles_rol_check check (rol in ('admin','coordinacion','cobranza','asistencia'));
+alter table public.perfiles add constraint perfiles_rol_check check (rol in ('admin','coordinacion','cobranza','asistencia','lectura'));
 
 -- Nadie puede cambiarse su propio rol: solo nombre y foto
 revoke update on public.perfiles from authenticated;
@@ -22,6 +22,7 @@ language sql stable security definer set search_path = public as $$
   select case public.mi_rol()
     when 'admin'        then true
     when 'coordinacion' then true
+    when 'lectura'      then not p_escribir
     when 'cobranza'     then case when p_escribir
                                then p_col in ('alumnos','tareas')
                                else p_col in ('alumnos','tareas','generaciones','programas','config','preguntas') end

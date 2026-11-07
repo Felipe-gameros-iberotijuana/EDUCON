@@ -744,9 +744,9 @@ function render() {
   else if (r === 'vinculacion') html = vVinc();
   else if (r.startsWith('o-')) html = vOrg(r.slice(2));
   else html = vTablero();
-  if (!canWrite) html = `<div class="ro-banner">Tienes acceso de solo lectura. Pide a quien administra la app que te dé permiso de edición.</div>` + html;
+  if (!canWrite) html = `<div class="ro-banner">Tienes acceso de solo visualización: puedes ver todo pero no editar. Si necesitas cambiar algo, pídeselo a quien administra la app.</div>` + html;
   v.innerHTML = html;
-  if (!canWrite) v.querySelectorAll('input:not([type=search]),select:not(.flt),textarea,button.w').forEach(e => e.disabled = true);
+  if (!canWrite) v.querySelectorAll('input:not([type=search]):not(.flt),select:not(.flt),textarea,button.w').forEach(e => e.disabled = true);
   window.scrollTo(0, sy);
   resolveNames(); resolveAvatars();
 }
@@ -1297,7 +1297,7 @@ function vPendientes() {
   return `<div class="head"><div><h1>Pendientes</h1><p>${all.filter(t => t.estado !== 'Completada').length} abiertos · ${late ? `<b style="color:var(--crit)">${late} vencidos</b> · ` : ''}${myOpen().length} asignados a ti. Arrastra las tarjetas para cambiar su estado.</p></div>
     <div class="tools"><input type="search" id="q-t" placeholder="Buscar pendiente" value="${esc(ui.tQ)}" aria-label="Buscar"><button class="btn pri w" data-act="t-new">+ Nuevo pendiente</button></div></div>
   <div class="tools"><span class="small muted">Agrupar por</span><div class="tabs">${[['estado','Progreso'],['asignado','Responsable'],['vence','Vencimiento'],['prioridad','Prioridad']].map(([k, n]) => `<button class="tab ${ui.tGroup === k ? 'on' : ''}" data-act="t-group" data-v="${k}">${n}</button>`).join('')}</div>
-    <label class="small" style="display:flex;gap:6px;align-items:center;margin-left:8px"><input type="checkbox" id="t-mine" ${ui.tMine ? 'checked' : ''}> Solo mis pendientes</label></div>
+    <label class="small" style="display:flex;gap:6px;align-items:center;margin-left:8px"><input type="checkbox" class="flt" id="t-mine" ${ui.tMine ? 'checked' : ''}> Solo mis pendientes</label></div>
   <div class="board">${cols.map(c => { const items = c.items.sort(sortT); const showAll = ui.tShow === c.k; const lim = c.k === 'Completada' || c.k === 'Completadas' ? 8 : 60;
     return `<div class="bcol" ${c.drop ? `data-drop="${esc(c.drop)}"` : ''}><div class="bh"><span>${c.raw ? c.n : esc(c.n)}</span><em>${items.length}</em></div>
     ${c.k === 'No iniciada' ? `<input class="in qa" id="qa" placeholder="+ Agregar pendiente y Enter" aria-label="Agregar pendiente">` : ''}
@@ -1446,6 +1446,7 @@ const SECC = {
   coordinacion:['tablero','calendario','diplomados','vinculacion','profesores','programas','alumnos','cobranza','asistencia','pendientes','faltantes'],
   cobranza:['alumnos','cobranza','pendientes'],
   asistencia:['asistencia','alumnos','pendientes'],
+  lectura:['tablero','calendario','diplomados','vinculacion','profesores','programas','alumnos','cobranza','asistencia','pendientes','faltantes'],
 };
 const secOf = r => r.startsWith('t-') ? 'pendientes' : r.startsWith('d-') ? 'diplomados' : r.startsWith('p-') ? 'profesores' : r.startsWith('pr-') ? 'programas' : r.startsWith('o-') ? 'vinculacion' : r.startsWith('a-') ? 'alumnos' : r.startsWith('as-') ? 'asistencia' : r;
 const permitido = r => (SECC[ROL] || SECC.coordinacion).includes(secOf(r));
@@ -1511,7 +1512,7 @@ function vAlumnos() {
     <div class="tools">${puedeEditar('alumnos') ? `<button class="btn w" data-act="imp-open">Importar desde Excel</button><button class="btn pri w" data-act="al-new">+ Alumno</button>` : ''}</div></div>
   ${ui.imp ? vImport() : ''}
   <div class="tools"><input type="search" id="q-al" placeholder="Buscar nombre, matrícula, correo, teléfono o empresa" value="${esc(ui.alQ || '')}" aria-label="Buscar">${grupoSel('al-gen', gsel, true, !ui.alConc)}
-    <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="al-bajas" ${ui.alBajas ? 'checked' : ''}> Mostrar bajas</label><label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="al-conc" ${ui.alConc ? 'checked' : ''}> Ver grupos concluidos</label><span class="small muted">${L.length} resultados</span></div>
+    <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="flt" id="al-bajas" ${ui.alBajas ? 'checked' : ''}> Mostrar bajas</label><label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="flt" id="al-conc" ${ui.alConc ? 'checked' : ''}> Ver grupos concluidos</label><span class="small muted">${L.length} resultados</span></div>
   <div class="card tbl-w"><table><thead><tr><th>Alumno</th><th>Grupo</th><th>Contacto</th>${verCob ? '<th>Pagos</th><th>Estado</th>' : ''}<th>Asistencia</th><th>Factura</th></tr></thead><tbody>
   ${L.slice(0, ui.alAll ? 2000 : 300).map(({ id, a, c, s }) => `<tr class="click" data-go="a-${id}"><td><b>${esc(nombreAl(a))}</b>${a.estatus === 'Baja' ? ' ' + pill('Baja', 's-pausa') : ''}<div class="small muted">${matDe(a) ? `<span class="mat">${esc(matDe(a))}</span>` : ''}${a.empresa ? (matDe(a) ? ' · ' : '') + esc(a.empresa) : ''}</div></td>
     <td class="small">${esc(genLabel(a.generacionId))}${(() => { const n = otrosProg(id, a).length; return n ? `<div class="muted">+${n} programa${n > 1 ? 's' : ''} más</div>` : ''; })()}</td><td class="small">${esc(a.telefono || '')}<div class="muted">${esc(a.correo || '')}</div></td>
@@ -1745,7 +1746,7 @@ async function setAsis(gid, fecha, aid, estado, via) {
 async function vEquipoLoad() { if (!user || !user.equipo) return; ui.eq = await user.equipo(); render(); }
 function vEquipo() {
   if (!ui.eq) { vEquipoLoad(); return '<div class="head"><div><h1>Equipo</h1></div></div><div class="loading">Cargando…</div>'; }
-  const R = { admin:'Administrador (todo + equipo)', coordinacion:'Coordinación (todo)', cobranza:'Cobranza (alumnos y cobranza)', asistencia:'Asistencia (lista y QR)' };
+  const R = { admin:'Administrador (todo + equipo)', coordinacion:'Coordinación (todo)', cobranza:'Cobranza (alumnos y cobranza)', asistencia:'Asistencia (lista y QR)', lectura:'Visualización (ve todo, no edita)' };
   return `<div class="head"><div><h1>Equipo</h1><p>Quién entra a la app y qué puede ver. Para agregar a alguien: Supabase → Authentication → Users → Add user (con «Auto Confirm User»). Aparece aquí en cuanto entre por primera vez.</p></div></div>
   <div class="card tbl-w"><table><thead><tr><th>Persona</th><th>Correo</th><th>Rol</th></tr></thead><tbody>
     ${ui.eq.map(p => `<tr><td><b>${esc(p.nombre || '')}</b>${p.id === myId ? ' <span class="muted small">(tú)</span>' : ''}</td><td class="small">${esc(p.email || '')}</td><td>${sel(Object.entries(R), p.rol, `data-rol="${p.id}" ${p.id === myId ? 'disabled' : ''}`, false)}</td></tr>`).join('')}
@@ -1969,7 +1970,7 @@ async function start() {
   db = await (window.claude?.use?.('db') ?? Promise.resolve(null)).catch(() => null);
   user = await (window.claude?.use?.('user') ?? Promise.resolve(null)).catch(() => null);
   if (!db) { clearTimeout(timer); $('#view').innerHTML = '<div class="empty">Inicia sesión en Claude para ver y editar la información de EduCon.</div>'; setSync(false, 'Sin acceso'); return; }
-  if (user) { myId = await user.id(); const c = await user.can('data.write'); if (c === false) canWrite = false; if (user.rol) ROL = await user.rol(); }
+  if (user) { myId = await user.id(); const c = await user.can('data.write'); if (c === false) canWrite = false; if (user.rol) ROL = await user.rol(); if (ROL === 'lectura') canWrite = false; }
   const sub = (col, key) => db.collection(col).onSnapshot(snap => {
     const o = {}; snap.docs.forEach(d => o[d.id] = d.data()); S[key] = o; S.loaded.add(col);
     if (S.loaded.has('generaciones')) { clearTimeout(timer); setSync(true, 'Conectado · en vivo'); }
